@@ -570,7 +570,7 @@ function closeModal() {
 async function getMapSource(fileName) {
     try {
         // 動的インポートを実行
-        const module = await import(`../maps/${fileName}.js`);
+        const module = await import(`./maps/${fileName}.js`);
 
         // モジュールからUSMAPを取り出す
         // export default USMAP なら module.default
