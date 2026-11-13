@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Election Game</title>
+    <style>
+        /* SVG内のimage要素にスタイルを当てる */
+        .map-icon {
+            /* SVG要素なので border-radius は効かない場合が多いけど、
+       クリップパスを使うか、元画像を丸くしておくのがベスト */
+            filter: drop-shadow(0px 2px 2px rgba(0, 0, 0, 0.5));
+        }
+
+        .candidate-icon {
+            /* 大統領は目立たせる */
+            outline: 2px solid gold;
+        }
+
+        .agent-icon {
+            /* 部下は少し控えめに */
+            opacity: 0.9;
+        }
+
+        .speech-bubble {
+            font-size: 12px;
+            font-weight: bold;
+            fill: black;
+            stroke: white;
+            stroke-width: 0.5px;
+            pointer-events: none;
+            animation: popUp 2s ease-out forwards;
+            /* 2秒で消える */
+        }
+
+        @keyframes popUp {
+            0% {
+                opacity: 0;
+                transform: translateY(0);
+            }
+
+            10% {
+                opacity: 1;
+                transform: translateY(-10px);
+            }
+
+            80% {
+                opacity: 1;
+                transform: translateY(-10px);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+
+        /* 横スクロールコンテナ */
+        .horizontal-scroll-grid {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 10px 5px;
+            scroll-behavior: smooth;
+        }
+
+        /* スクロールバーの装飾 */
+        .horizontal-scroll-grid::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .horizontal-scroll-grid::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+
+        /* 子要素（カード）の横幅を固定して縦潰れを防止 */
+        .horizontal-scroll-grid>div {
+            flex: 0 0 160px;
+            box-sizing: border-box;
+        }
+
+        .person_image {
+            float: left;
+            margin: 1.2em 1em 0;
+            border: double;
+            border-color: #C9C9C9;
+            height: 220px;
+            width: 220px;
+        }
+
+        .state {
+            pointer-events: all;
+            /* 透明な部分でもクリックに反応させる */
+            cursor: pointer;
+        }
+
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            background: #f0f0f0;
+        }
+
+        #map-container {
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+
+        .state {
+            stroke: #ffffff;
+            stroke-width: 2;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .state:hover {
+            opacity: 0.7;
+        }
+
+        #display {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            padding: 10px;
+            background: #333;
+            color: white;
+            border-radius: 5px;
+        }
+
+        #scenario-name {
+            color: #555;
+        }
+
+        /* プレイヤー全体の枠組み（最低限のサイズと配置） */
+        .js-mp-container {
+            width: 320px;
+            padding: 16px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            font-family: sans-serif;
+        }
+
+        /* タイトル（はみ出し防止のみ） */
+        .js-mp-title {
+            margin: 0 0 4px;
+            font-size: 16px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .js-mp-status {
+            font-size: 12px;
+        }
+
+        /* スライダー（幅いっぱい） */
+        .js-mp-container input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        /* 時間表示（左右配置） */
+        .js-mp-time {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        /* 操作ボタン（横並び） */
+        .js-mp-controls {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .js-mp-controls button {
+            cursor: pointer;
+        }
+
+        /* 音量バー（横並び） */
+        .js-mp-volume {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        /* ファイルアップロードボタン（ラベルをブロック化） */
+        .js-mp-upload {
+            display: block;
+            text-align: center;
+            padding: 6px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* プレイリスト（スクロール枠のみ） */
+        .js-mp-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 150px;
+            overflow-y: auto;
+            border-top: 1px solid #ccc;
+        }
+
+        .js-mp-list li {
+            padding: 6px 4px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 再生中の曲だけ太字にする（最低限の区別） */
+        .js-mp-list li.active {
+            font-weight: bold;
+        }
+
+
+        .candidate-card {
+            display: flex;
+            align-items: center;
+            width: 40%;
+        }
+
+        #candidate-2 {
+            justify-content: flex-end;
+        }
+
+        /* モーダル背景 */
+        .modal-overlay {
+            display: none;
+            /* 最初は隠しておく */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* イベントカード本体 */
+        /* イベントカード本体 */
+        .event-card {
+            background: #ffffff;
+            /* 清潔な白 */
+            width: 95%;
+            max-width: 500px;
+            padding: 24px;
+            border-radius: 12px;
+            /* 柔らかい角丸 */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            /* 重すぎない影 */
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            /* 現代的なフォント */
+            color: #333333;
+            border: 1px solid #e0e0e0;
+            /* 控えめな枠線 */
+        }
+
+        /* ヘッダー部分（日付とタイトル） */
+        .event-header {
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+        }
+
+        .event-date {
+            font-size: 0.85em;
+            color: #666666;
+            /* 日付は少し薄く */
+            font-weight: 600;
+        }
+
+        .event-card h2 {
+            margin: 8px 0;
+            font-size: 1.5em;
+            color: #222222;
+            font-weight: bold;
+        }
+
+        /* 本文テキスト */
+        .event-body {
+            line-height: 1.7;
+            margin-bottom: 24px;
+            font-size: 1.05em;
+            color: #444444;
+        }
+
+        /* 選択肢ボタンのコンテナ */
+        .event-footer {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* 無難で押しやすいボタン */
+        .event-choice-btn {
+            background: #f8f9fa;
+            /* 薄いグレー */
+            color: #333333;
+            border: 1px solid #dcdcdc;
+            padding: 14px 18px;
+            font-size: 0.95em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        /* ホバー時の挙動（少し青みがかったモダンな感じ） */
+        .event-choice-btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+            transform: translateY(-2px);
+            /* 上に少し浮く */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        /* アクティブ（クリック）時 */
+        .event-choice-btn:active {
+            transform: translateY(0);
+            background: #dee2e6;
+        }
+
+        /* 画面全体の枠組み（白背景・黒文字の基本構造のみ） */
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #fff;
+            color: #000;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px;
+            box-sizing: border-box;
+            font-family: sans-serif;
+            overflow-y: auto;
+        }
+
+        /* 上部ヘッダー（左右配置） */
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 8px;
+        }
+
+        .result-title-wrap {
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-live-badge {
+            border: 1px solid #000;
+            font-size: 0.7em;
+            padding: 2px 6px;
+        }
+
+        .result-skip-btn,
+        .result-replay-btn {
+            cursor: pointer;
+            padding: 6px 12px;
+        }
+
+        /* ゲージエリア（枠線と余白のみ） */
+        .result-gauge-box {
+            margin: 12px 0;
+            padding: 12px;
+            border: 1px solid #ccc;
+        }
+
+        .result-threshold {
+            text-align: center;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .result-party-row {
+            margin-bottom: 8px;
+        }
+
+        .result-party-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            margin-bottom: 4px;
+        }
+
+        /* ゲージの土台（薄グレー）と過半数ライン */
+        .result-bar-bg {
+            background: #eee;
+            height: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-bar-center-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #000;
+            z-index: 2;
+        }
+
+        .result-bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease-out;
+        }
+
+        /* メイン領域（マップと詳細の横並び構造） */
+        .result-main {
+            display: flex;
+            flex: 1;
+            gap: 12px;
+            min-height: 300px;
+            flex-wrap: wrap;
+        }
+
+        .result-map-box {
+            flex: 2;
+            min-width: 300px;
+            border: 1px solid #ccc;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .result-detail-box {
+            flex: 1;
+            min-width: 250px;
+            border: 1px solid #ccc;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .result-detail-header {
+            font-weight: bold;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 6px;
+        }
+
+        .result-detail-body {
+            flex: 1;
+            margin-top: 8px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        /* 最終結果発表カード */
+        .result-announcement {
+            text-align: center;
+            opacity: 0;
+            transition: opacity 1s ease;
+            padding: 16px;
+            border: 1px solid #000;
+            margin-top: 12px;
+        }
+
+        /* 最終リザルト画面の全体枠 */
+        .summary-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #fff;
+            color: #000;
+            z-index: 100000;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            box-sizing: border-box;
+            font-family: sans-serif;
+            overflow-y: auto;
+        }
+
+        /* ヘッダーとタブバー */
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .summary-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .summary-tab-btn {
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            background: #f4f4f5;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .summary-tab-btn.active {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
+
+        /* タブ1：エンディングストーリー */
+        .summary-hero {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .summary-badge {
+            display: inline-block;
+            border: 1px solid #000;
+            padding: 2px 8px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .summary-hero h1 {
+            margin: 8px 0 4px;
+            font-size: 1.6em;
+        }
+
+        .summary-subline {
+            margin: 0;
+            font-size: 0.95em;
+            color: #555;
+        }
+
+        .summary-story-box {
+            line-height: 1.8;
+            font-size: 1em;
+            max-width: 800px;
+            white-space: pre-wrap;
+        }
+
+        /* タブ2：マップと得票率テーブルの横並び */
+        .summary-map-layout {
+            display: flex;
+            gap: 16px;
+            flex: 1;
+            min-height: 350px;
+            flex-wrap: wrap;
+        }
+
+        .summary-map-box {
+            flex: 1.2;
+            min-width: 300px;
+            border: 1px solid #ccc;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .summary-table-box {
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid #ccc;
+            overflow-y: auto;
+            max-height: 65vh;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            text-align: left;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .summary-table th {
+            background: #f9f9f9;
+            position: sticky;
+            top: 0;
+        }
+
+        /* ハイライト分析カード群 */
+        .summary-highlights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .highlight-card {
+            border: 1px solid #ccc;
+            padding: 10px 12px;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .highlight-card-title {
+            font-weight: bold;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+        }
+
+        /* テーブル内の視覚的なミニ得票バー */
+        .mini-bar-wrap {
+            display: flex;
+            height: 8px;
+            width: 100%;
+            background: #eee;
+            margin-bottom: 4px;
+            overflow: hidden;
+        }
+
+        .mini-bar-seg {
+            height: 100%;
+        }
+
+        .mini-pct-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.85em;
+        }
+
+        .margin-badge {
+            display: inline-block;
+            font-size: 0.8em;
+            padding: 1px 6px;
+            border: 1px solid #ccc;
+            margin-left: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- シナリオ詳細・登場人物モーダル -->
+    <div id="scenario-detail-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+        <div
+            style="background: white; border-radius: 16px; width: 100%; max-width: 750px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);">
+
+            <!-- モーダルヘッダー -->
+            <div
+                style="padding: 20px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <div>
+                    <h2 id="modal-scenario-title" style="margin: 0; font-size: 1.4em; color: #0f172a;">シナリオ詳細情報</h2>
+                    <div id="modal-scenario-sub" style="font-size: 0.85em; color: #64748b; margin-top: 4px;"></div>
+                </div>
+                <button onclick="closeScenarioModal()"
+                    style="border: none; background: transparent; font-size: 1.5em; cursor: pointer; color: #64748b;">✕</button>
+            </div>
+
+            <!-- フィルター・検索ツールバー -->
+            <div
+                style="padding: 16px 24px; background: #ffffff; border-bottom: 1px solid #f1f5f9; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <!-- キーワード検索 -->
+                <input type="text" id="modal-person-search" placeholder="人物名や説明文で検索..." oninput="filterModalPeople()"
+                    style="flex: 1; min-width: 180px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9em;">
+
+                <!-- 役割フィルター -->
+                <select id="modal-role-filter" onchange="filterModalPeople()"
+                    style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9em; background: white;">
+                    <option value="ALL">全役割</option>
+                    <option value="PRESIDENT">大統領候補</option>
+                    <option value="MATE">副大統領候補</option>
+                    <option value="AGENT">選対スタッフ / 参謀</option>
+                </select>
+
+                <!-- 党フィルター -->
+                <select id="modal-party-filter" onchange="filterModalPeople()"
+                    style="padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9em; background: white;">
+                    <option value="ALL">全政党</option>
+                </select>
+            </div>
+
+            <!-- 登場人物カードグリッド（スクロール可能） -->
+            <div id="modal-people-list"
+                style="padding: 20px 24px; overflow-y: auto; flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; background: #f8fafc;">
+            </div>
+
+            <!-- モーダルアクションフッター -->
+            <div
+                style="padding: 16px 24px; border-top: 1px solid #e2e8f0; background: white; display: flex; justify-content: space-between; align-items: center;">
+                <div id="modal-person-count" style="font-size: 0.85em; color: #64748b;"></div>
+                <div style="display: flex; gap: 12px;">
+                    <button onclick="closeScenarioModal()"
+                        style="padding: 10px 20px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #475569;">閉じる</button>
+                    <button id="modal-start-btn"
+                        style="padding: 10px 24px; border: none; border-radius: 8px; background: #2563eb; color: white; cursor: pointer; font-weight: bold; font-size: 1em;">このシナリオで開始！</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="scenario-selector" style="padding: 30px; max-width: 1000px; margin: 0 auto;">
+        <h2>シナリオを選択してください</h2>
+
+        <!-- 検索バー ＆ マップ絞り込みフィルター -->
+        <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+            <input type="text" id="scenario-search" placeholder="シナリオ名や政党名で検索..." oninput="filterScenarios()"
+                style="flex: 1; min-width: 200px; padding: 12px 16px; font-size: 1em; border: 1px solid #ccc; border-radius: 8px;">
+
+            <select id="map-filter" onchange="filterScenarios()"
+                style="padding: 12px 16px; font-size: 1em; border: 1px solid #ccc; border-radius: 8px; background: white;">
+                <option value="ALL">すべてのマップ</option>
+                <!-- JavaScriptで動的にマップ種別を追加 -->
+            </select>
+        </div>
+
+        <!-- シナリオカード一覧コンテナ -->
+        <div id="scenario-list" style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+        </div>
+    </div>
+
+    <div id="setup-screen" style="padding: 10px; display:none;">
+
+        <!-- 枠線だけのシンプルなコンテナ -->
+        <div style="width: 95%; margin: 0 auto; padding: 20px;">
+
+            <!-- 現在のステップ名 -->
+            <h2 id="setup-title" style="margin-top: 0;">1. ゲーム説明</h2>
+
+            <!-- メインエリア -->
+            <div style="margin: 20px 0; min-height: 150px;">
+
+                <!-- STEP 1: 説明 -->
+                <div id="step-content-1" class="setup-step">
+                </div>
+
+                <!-- STEP 2: 政党選び -->
+                <div id="step-content-2" class="setup-step" style="display: none;">
+                </div>
+
+                <div id="step-content-3" class="setup-step" style="display: none;">
+                    <!-- ボタンから select に変更 -->
+                    <select id="party-dropdown" style="margin: 0 auto; display: block;"></select>
+                    <div id="party-info-window"
+                        style="display: none; border: 1px solid #000; padding: 15px; margin-top: 15px; background: #fff;">
+                    </div>
+                </div>
+                <!-- STEP 4: 大統領候補選び -->
+                <div id="step-content-4" class="setup-step" style="display: none;">
+                    <!-- idを統一しやすい名前に -->
+                    <select id="president-dropdown" style="margin: 0 auto; display: block;"></select>
+
+                    <div id="president-info-window"
+                        style="display: none; border: 1px solid #000; padding: 15px; margin-top: 15px; background: #fff;">
+                        <div style="display: flex; gap: 20px; align-items: flex-start;">
+
+                            <img class="person_image" id="president-info-img" src="" alt="候補者画像" width="100%"
+                                height="100%" style="display: none;">
+                            <span id="president-info-noimg" style="font-size: 0.8em; color: #777;">No Image</span>
+                            <div id="president-info-bio"
+                                style="flex-grow: 1; line-height: 1.6; color: #000; font-size: 0.95em;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 5: 副大統領候補選び -->
+                <div id="step-content-5" class="setup-step" style="display: none;">
+                    <!-- 大統領側と対になる id 構成に -->
+                    <select id="mate-dropdown" style="margin: 0 auto; display: block;"></select>
+
+                    <div id="mate-info-window"
+                        style="display: none; border: 1px solid #000; padding: 15px; margin-top: 15px; background: #fff;">
+                        <div style="display: flex; gap: 20px; align-items: flex-start;">
+
+                            <img class="person_image" id="president-info-img" src="" alt="候補者画像" width="100%"
+                                height="100%" style="display: none;">
+                            <div id="mate-info-bio"
+                                style="flex-grow: 1; line-height: 1.6; color: #000; font-size: 0.95em;"></div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- STEP 5: 設定 -->
+                <div id="step-content-6" class="setup-step" style="display: none;">
+                </div>
+
+            </div>
+
+            <!-- ナビゲーションボタン -->
+            <div
+                style="display: flex; justify-content: center; gap: 10px; border-top: 1px solid #000; padding-top: 15px; align-items: center;">
+                <button id="prev-btn" onclick="changeStep(-1)" style="display: none;">戻る</button>
+                <button id="next-btn" onclick="changeStep(1)">次へ</button>
+                <button id="start-btn" onclick="confirmSetup()" style="display: none;">選挙戦を開始する！</button>
+            </div>
+
+        </div>
+    </div>
+    <div id="main-game" style="display:none">
+
+        <h1 id="scenario-name">読み込み中...</h1>
+        <div id="date-display" style="font-size: 1.5em; font-weight: bold; padding: 10px;">
+            日付: <span id="current-date">-</span>
+        </div>
+        <div id="map-container"></div>
+        <div style="display: flex; justify-content: space-around; align-items: center;">
+            <button onclick="advanceTime()">次の日へ</button>
+
+        </div>
+
+        <div id="progress-container" style="width: 100%; background: #eee; border-radius: 5px; margin: 10px 0;">
+            <div id="progress-bar"
+                style="width: 0%; height: 20px; background: #4caf50; border-radius: 5px; transition: width 0.3s;"></div>
+        </div>
+        <div id="days-left" style="font-size: 0.9em; color: #666;">残り: - 日</div>
+
+        <div id="candidate-panel"
+            style="display: flex; justify-content: space-around; align-items: center; background: white; padding: 15px; border-radius: 10px; margin: 10px auto; max-width: 800px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+            <div id="candidate-1" class="candidate-card" style="display: flex; align-items: center; padding: 10px;">
+                <div style="text-align: center;">
+                    <img id="c1-image" src=""
+                        style="width: 80px; height: 100px; object-fit: cover; border-radius: 5px; border: 3px solid red;">
+                    <div id="c1-name" style="font-weight: bold; font-size: 1.1em;">-</div>
+                    <div id="c1-party" style="font-size: 0.8em; color: #666;">-</div>
+                    <div id="c1-status"
+                        style="font-size: 0.8em; background: #eee; padding: 2px 5px; border-radius: 3px; display: inline-block; margin-top: 5px;">
+                        -</div>
+
+                </div>
+                <div id="c1-mate-joint" style="margin: 0 10px; font-weight: bold; font-size: 1.2em;">+</div>
+
+                <div style="text-align: center;">
+                    <img id="c1-mate-image" src=""
+                        style="width: 60px; height: 80px; object-fit: cover; border-radius: 5px; border: 2px solid #666;">
+                    <div id="c1-mate-name" style="font-size: 0.9em; font-weight: bold;">-</div>
+                </div>
+            </div>
+
+            <div style="font-size: 2em; font-style: italic; color: #ccc; font-weight: bold;">VS</div>
+
+            <div id="candidate-2" class="candidate-card">
+                <div style="text-align: right; margin-right: 10px;">
+                    <div id="c2-name" style="font-weight: bold; font-size: 1.1em;">-</div>
+                    <div id="c2-party" style="font-size: 0.8em; color: #666;">-</div>
+                    <div id="c2-status"
+                        style="font-size: 0.8em; background: #eee; padding: 2px 5px; border-radius: 3px; display: inline-block; margin-top: 5px;">
+                        -</div>
+                </div>
+                <img id="c2-image" src=""
+                    style="width: 80px; height: 100px; object-fit: cover; border-radius: 5px; border: 3px solid blue;">
+            </div>
+        </div>
+        <div id="extra-candidates-area" style="margin-top: 10px;">
+            <!-- ボタン群エリア（横並び） -->
+            <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                <!-- 他の候補者表示ボタン -->
+                <button id="toggle-candidates-btn" onclick="toggleExtraCandidates()"
+                    style="padding: 5px 15px; cursor: pointer; border-radius: 20px; border: 1px solid #ccc; background: #fff;">
+                    他の候補者を表示
+                </button>
+
+                <!-- スタッフ雇用ボタン（ID重複を修正） -->
+                <button id="open-agent-btn" onclick="openAgentList()"
+                    style="padding: 5px 15px; cursor: pointer; border-radius: 20px; border: 1px solid #ccc; background: #fff;">
+                    スタッフを雇う
+                </button>
+            </div>
+
+            <!-- 折りたたまれる候補者一覧 -->
+            <div id="extra-candidates-list"
+                style="display: none; justify-content: center; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+            </div>
+        </div>
+
+        <style>
+            /* 既存のスタイルに追加 */
+        </style>
+
+        <div id="display"></div>
+
+    </div>
+
+    <!-- 選挙結果画面（普段は非表示） -->
+    <div id="electionResultOverlay" class="result-overlay" style="display: none;">
+        <!-- 上部ヘッダー -->
+        <div class="result-header">
+            <div class="result-title-wrap">
+                <span class="result-live-badge">LIVE</span>
+                <span id="resultMapName">大統領選挙</span>・結果
+            </div>
+            <button type="button" id="skipResultBtn" class="result-skip-btn">⚡ スキップ</button>
+        </div>
+
+        <!-- 得票数ゲージエリア（JSで中身を生成） -->
+        <div class="result-gauge-box">
+            <div class="result-threshold">過半数ライン: <span id="resultThreshold">270</span> 票</div>
+            <div id="resultGaugeList"></div>
+        </div>
+
+        <!-- メイン領域（左：SVGマップ、右：開票情報） -->
+        <div class="result-main">
+            <div id="resultMapContainer" class="result-map-box"></div>
+            <div class="result-detail-box">
+                <div class="result-detail-header">
+                    開票情報 <small>(タップで詳細)</small>
+                </div>
+                <div id="stateDetailBox" class="result-detail-body">
+                    開票中... マップ上の州を選択すると詳細が表示されます。
+                </div>
+            </div>
+        </div>
+
+        <!-- 下部：最終結果発表カード -->
+        <div id="finalAnnouncement" class="result-announcement">
+            <h1 id="resultWinnerTitle">当選</h1>
+            <p id="winnerDetailText"></p>
+            <button type="button" id="replayBtn" class="result-replay-btn">結果を見る</button>
+        </div>
+    </div>
+
+    <!-- 最終リザルト・総括画面（タブ切り替え式） -->
+    <div id="finalSummaryScreen" class="summary-screen" style="display: none;">
+        <!-- 上部ヘッダー & タブボタン -->
+        <div class="summary-header">
+            <div class="summary-tabs">
+                <button type="button" class="summary-tab-btn active" data-tab="tab-story">📜 選挙の総括・その後</button>
+                <button type="button" class="summary-tab-btn" data-tab="tab-map">🗺️ 最終マップ・各州の得票率</button>
+            </div>
+            <button type="button" class="result-replay-btn" onclick="location.reload()">もう一度プレイ</button>
+        </div>
+
+        <!-- タブ1：臨場感のある勝利・敗北メッセージ（エンディング） -->
+        <div id="tab-story" class="summary-tab-content active">
+            <div class="summary-hero">
+                <span id="summaryOutcomeBadge" class="summary-badge">当選</span>
+                <h1 id="summaryHeadline">ジョージ・ワシントンが次期大統領に選出</h1>
+                <p id="summarySubline" class="summary-subline">獲得選挙人票: 69票 / 過半数ライン: 35票</p>
+            </div>
+            <!-- Mod制作者がカスタムできる「その後の歴史・ストーリー」本文 -->
+            <div id="summaryStoryBody" class="summary-story-box"></div>
+        </div>
+        <!-- タブ2：最終マップと各州の得票率一覧 -->
+        <div id="tab-map" class="summary-tab-content" style="display: none;">
+            <!-- ★新規追加：選挙のハイライト分析エリア -->
+            <div id="summaryHighlights" class="summary-highlights"></div>
+
+            <div class="summary-map-layout">
+                <!-- 左：色塗り済みの最終マップ -->
+                <div id="summaryMapContainer" class="summary-map-box"></div>
+                <!-- 右：見やすくなった各州の得票率テーブル -->
+                <div class="summary-table-box">
+                    <table class="summary-table">
+                        <thead>
+                            <tr>
+                                <th>地域 / 票数</th>
+                                <th>勝者 / 点差</th>
+                                <th>得票率の内訳</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryStateTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="js-mp-container" id="js-mp-container" style="display:none; width:95%; margin:1em;">
+        <div class="js-mp-now">
+            <p class="js-mp-title" id="jsMpTitle">Loading...</p>
+            <span class="js-mp-status" id="jsMpStatus">停止中</span>
+        </div>
+
+        <div class="js-mp-progress">
+            <input type="range" id="jsMpSeek" value="0" min="0" max="100" step="0.1">
+            <div class="js-mp-time">
+                <span id="jsMpCurrent">0:00</span>
+                <span id="jsMpDuration">0:00</span>
+            </div>
+        </div>
+
+        <div class="js-mp-controls">
+            <button type="button" id="jsMpPrev">前へ</button>
+            <button type="button" class="js-mp-play" id="jsMpPlay">再生</button>
+            <button type="button" id="jsMpNext">次へ</button>
+        </div>
+
+        <div class="js-mp-volume">
+            <span>音量</span>
+            <input type="range" id="jsMpVol" min="0" max="1" step="0.01" value="0.8">
+        </div>
+
+        <ul class="js-mp-list" id="jsMpList"></ul>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+    <script src="script/script.js"></script>
+
+    <script src="script/scenario.js"></script>
+    <script src="script/event.js"></script>
+    <script src="script/election.js"></script>
+    <script src="script/music.js"></script>
+    <script src="script/musicskinloader.js"></script>
+
+    <div id="eventModal" class="modal-overlay">
+        <div class="event-card">
+            <div class="event-header">
+                <span id="eventDate" class="event-date">1927-10-01</span>
+                <h2 id="eventTitle">タイトル</h2>
+            </div>
+            <div class="event-body">
+                <p id="eventDesc">ここにイベントの説明文が入ります。</p>
+            </div>
+            <div id="eventChoices" class="event-footer">
+            </div>
+        </div>
+    </div>
+
+    <div id="generic-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modal-title">タイトル</h2>
+            <div id="modal-body">
+            </div>
+            <div class="modal-footer">
+                <button id="modal-close-btn" onclick="closeModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        /* 背景の暗まり */
+        .modal-overlay {
+            display: none;
+            /* 最初は隠しておく */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modal-body ul {
+            padding: 0;
+            text-align: left;
+        }
+
+        #modal-body hr {
+            border: 0;
+            border-top: 1px solid #ddd;
+            margin: 15px 0;
+        }
+
+        /* モーダルの箱 */
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            animation: modalIn 0.3s ease-out;
+            /* 出現アニメーション */
+        }
+
+        @keyframes modalIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+        }
+
+        #modal-close-btn {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+
+    <div id="agent-list-modal-content" style="display:none;">
+        <div style="max-height: 400px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead style="position: sticky; top: 0; background: #eee;">
+                    <tr>
+                        <th>名前</th>
+                        <th>所属</th>
+                        <th>状態</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="agent-list-table-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="agent-modal-content" style="display:none;">
+        <div class="agent-card"
+            style="border: 2px solid #ddd; padding: 15px; border-radius: 10px; background: #f9f9f9;">
+            <img id="agent-pic" src="" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #333;">
+            <h3 id="agent-name" style="margin: 10px 0 5px 0;">名前</h3>
+            <p id="agent-role" style="font-size: 0.9em; color: #666; font-style: italic;">肩書き</p>
+            <p id="agent-desc" style="font-size: 0.95em; margin: 10px 0;">説明文がここに入ります。</p>
+            <div style="background: #e9ecef; padding: 10px; border-radius: 5px; text-align: left; font-size: 0.9em;">
+                <strong>能力:</strong> <span id="agent-power"></span><br>
+                <strong>ホームステート:</strong> <span id="agent-home"></span>
+            </div>
+            <button id="hire-btn" onclick=""
+                style="margin-top: 15px; width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">
+                雇用する（支持率ボーナス消費など）
+            </button>
+        </div>
+    </div>
+
+    </div>
+</body>
+
+</html>

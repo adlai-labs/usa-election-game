@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>選挙ゲーム 高機能イベント編集ツール</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f4f6f9;
+            padding: 20px;
+            color: #333;
+            display: flex;
+            gap: 20px;
+            margin: 0;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: calc(100vh - 40px);
+        }
+
+        .main-content {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        h1,
+        h2,
+        h3 {
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 5px;
+            color: #0056b3;
+            margin-top: 0;
+        }
+
+        /* ファイル入力エリア */
+        .file-zone {
+            border: 2px dashed #0056b3;
+            padding: 15px;
+            text-align: center;
+            background: #f0f4f8;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .event-list-box {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .event-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .event-item:hover {
+            background: #e9ecef;
+        }
+
+        .event-item.active {
+            background: #0056b3;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* フォーム系 */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .choice-box {
+            border: 1px dashed #28a745;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fafffa;
+            border-radius: 6px;
+        }
+
+        .raw-json-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        button {
+            background: #0056b3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #004085;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        pre {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 200px;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 左側：ファイル読み込み ＆ リスト -->
+    <div class="sidebar">
+        <h2>1. JSON読み込み</h2>
+        <div class="file-zone" onclick="document.getElementById('fileInput').click()">
+            ここにJSONファイルをドロップするか<br><strong>クリックして選択</strong>
+            <input type="file" id="fileInput" accept=".json,.js" style="display:none;"
+                onchange="handleFileSelect(this)">
+        </div>
+
+        <h2>2. イベント一覧</h2>
+        <button type="button" class="btn-success" style="width: 100%; margin-bottom: 10px;" onclick="addNewEvent()">＋
+            新しいイベントを追加</button>
+
+        <div class="event-list-box" id="eventListContainer">
+            <div style="padding:15px; color:#666; font-style:italic; text-align:center;">JSONを読み込んでください</div>
+        </div>
+    </div>
+
+    <!-- 右側：ガッツリ編集エリア -->
+    <div class="main-content">
+        <h2>3. 編集エリア</h2>
+        <div id="editorForm" style="display:none;">
+            <div class="form-group">
+                <label>イベントID（※書き換え可能）</label>
+                <input type="text" id="eventId">
+            </div>
+            <div class="form-group">
+                <label>イベントタイトル (title)</label>
+                <input type="text" id="eventTitle">
+            </div>
+            <div class="form-group">
+                <label>対象候補者 (target - カンマ区切り)</label>
+                <input type="text" id="eventTarget">
+            </div>
+            <div class="form-group">
+                <label>日付 (date)</label>
+                <input type="text" id="eventDate">
+            </div>
+            <div class="form-group">
+                <label>説明文 (desc)</label>
+                <textarea id="eventDesc" rows="3"></textarea>
+            </div>
+
+            <h3>選択肢と結果の編集</h3>
+            <div id="choicesContainer"></div>
+
+            <div class="action-bar">
+                <button type="button" class="btn-success" onclick="saveCurrentEvent()">メモリ上のデータを更新</button>
+            </div>
+        </div>
+        <div id="placeholderText" style="color:#666; font-style:italic; padding:20px; text-align:center;">
+            左側のリストからイベントを選択すると、ここに詳細な編集フォームが開きます。</div>
+
+        <h2>4. データの出力</h2>
+        <div class="action-bar">
+            <button type="button" onclick="exportJSON()">最新データをクリップボードにコピー</button>
+            <button type="button" style="background:#17a2b8;" onclick="downloadJSONFile()">JSONファイルとしてダウンロード</button>
+        </div>
+        <pre><code id="jsonOutput">// ここに随時全体データのプレビューが同期されます</code></pre>
+    </div>
+
+    <script>
+        let localEvents = [];
+        let currentSelectedIndex = -1;
+
+        // 💡 新しい空のイベントを配列の最後尾に追加する関数
+        function addNewEvent() {
+            // あなたのゲームの基本データ構造で空データを作成
+            const newEvent = {
+                "id": "new_event_" + (localEvents.length + 1),
+                "title": "新しいイベント",
+                "target": [""],
+                "date": "",
+                "desc": "ここにイベントの説明文を入力してください。",
+                "conditions": [],
+                "choices": [
+                    {
+                        "text": "選択肢1",
+                        "historical": true,
+                        "advisorText": {},
+                        "effects": []
+                    }
+                ]
+            };
+
+            // 配列に追加してリストを再描画
+            localEvents.push(newEvent);
+            initList();
+
+            // 追加した新しいイベントを自動的に選択状態にする
+            loadEventToForm(localEvents.length - 1);
+        }
+
+
+        // ファイル選択時の処理
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    let text = e.target.result.trim();
+                    // もし js ファイル等で「const events = [...]」となっている場合の簡易除去
+                    if (text.startsWith('const') || text.startsWith('let') || text.startsWith('var')) {
+                        text = text.substring(text.indexOf('=') + 1).trim();
+                        if (text.endsWith(';')) text = text.slice(0, -1);
+                    }
+                    const json = JSON.parse(text);
+                    localEvents = Array.isArray(json) ? json : [json];
+                    initList();
+                    alert(`${localEvents.length} 件のイベントを読み込みました！`);
+                } catch (err) {
+                    alert('JSONのパースに失敗しました。正しいJSON形式か確認してください。\nエラー詳細: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ドロップ操作への対応
+        const fileZone = document.querySelector('.file-zone');
+        fileZone.addEventListener('dragover', (e) => { e.preventDefault(); fileZone.style.background = '#e0e8f0'; });
+        fileZone.addEventListener('dragleave', () => { fileZone.style.background = '#f0f4f8'; });
+        fileZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileZone.style.background = '#f0f4f8';
+            document.getElementById('fileInput').files = e.dataTransfer.files;
+            handleFileSelect(document.getElementById('fileInput'));
+        });
+
+        // 左側リストの生成
+        function initList() {
+            const container = document.getElementById('eventListContainer');
+            container.innerHTML = '';
+            localEvents.forEach((ev, index) => {
+                const div = document.createElement('div');
+                div.className = 'event-item';
+                div.id = `ev-item-${index}`;
+                div.textContent = `${ev.id || 'NO_ID'} : ${ev.title || '無題のイベント'}`;
+                div.onclick = () => loadEventToForm(index);
+                container.appendChild(div);
+            });
+            updateOutputText();
+        }
+
+        // フォームへデータを展開
+        function loadEventToForm(index) {
+            currentSelectedIndex = index;
+            document.getElementById('placeholderText').style.display = 'none';
+            document.getElementById('editorForm').style.display = 'block';
+
+            document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
+            const currentEl = document.getElementById(`ev-item-${index}`);
+            if (currentEl) currentEl.classList.add('active');
+
+            const ev = localEvents[index];
+            document.getElementById('eventId').value = ev.id || '';
+            document.getElementById('eventTitle').value = ev.title || '';
+            document.getElementById('eventTarget').value = Array.isArray(ev.target) ? ev.target.join(', ') : (ev.target || '');
+            document.getElementById('eventDate').value = ev.date || '';
+            document.getElementById('eventDesc').value = ev.desc || '';
+
+            // 選択肢の動的生成
+            const choicesContainer = document.getElementById('choicesContainer');
+            choicesContainer.innerHTML = '';
+
+            if (ev.choices && Array.isArray(ev.choices)) {// 【HTML生成部分の差し替えイメージ】
+                ev.choices.forEach((choice, cIndex) => {
+                    const isHistorical = choice.historical === true;
+                    const rawAdvisorText = choice.advisorText ? JSON.stringify(choice.advisorText, null, 4) : '{}';
+
+                    const html = `
+        <div class="choice-box" data-choice-index="${cIndex}">
+            <div class="form-group">
+                <label>選択肢 ${cIndex + 1} のテキスト (text)</label>
+                <input type="text" class="choice-text-input" value="${choice.text || ''}">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" class="choice-historical-check" ${isHistorical ? 'checked' : ''}>
+                    🌟 この選択肢を「史実（historical: true）」にする
+                </label>
+            </div>
+            <div class="form-group">
+                <label>アドバイザーテキスト (JSON)</label>
+                <textarea class="choice-advisor-json" rows="2" style="font-family:monospace; font-size:12px;">${rawAdvisorText}</textarea>
+            </div>
+            
+            <!-- 🛠️ ここから：エフェクトGUIエリア -->
+            <div class="effects-gui-title" style="font-weight:bold; margin-top:10px; color:#28a745;">実行結果・効果 (effects)</div>
+            <div class="effects-list-container">
+                <!-- ここに既存の効果（eff）が自動で入る -->
+            </div>
+            <button type="button" class="btn-add-effect" onclick="addEffectBlock(this)" style="background:#28a745; font-size:12px; padding:4px 8px; margin-top:5px;">＋ 効果を追加</button>
+            <!-- 🛠️ ここまで -->
+        </div>
+    `;
+                    choicesContainer.insertAdjacentHTML('beforeend', html);
+
+                    // 既存の choice.effects を1つずつGUIブロックとして復元して流し込む
+                    const listContainer = choicesContainer.lastElementChild.querySelector('.effects-list-container');
+                    if (choice.effects && Array.isArray(choice.effects)) {
+                        choice.effects.forEach(eff => {
+                            addEffectBlock(listContainer, eff);
+                        });
+                    }
+                });
+            }
+        }
+
+        // 効果ブロック（GUI）を生成・追加する関数
+        function addEffectBlock(target, existingEff = null) {
+            // ボタンから呼ばれた場合と、初期読み込みでコンテナが直接渡された場合の両方に対応
+            const container = target.classList && target.classList.contains('btn-add-effect')
+                ? target.parentElement.querySelector('.effects-list-container')
+                : target;
+
+            const initialType = existingEff ? existingEff.type : 'support_all';
+            const initialParty = existingEff ? (existingEff.party || '') : 'OWN';
+
+            const html = `
+        <div class="effect-item-block" style="border:1px solid #ddd; padding:10px; margin-top:5px; background:#fff; border-radius:4px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <select class="eff-type-select" onchange="toggleEffFields(this)" style="width:60%;">
+                    <option value="support_all" ${initialType === 'support_all' ? 'selected' : ''}>support_all (全体支持率変更)</option>
+                    <option value="support_state" ${initialType === 'support_state' ? 'selected' : ''}>support_state (特定州支持率変更)</option>
+                    <option value="edit_candidate" ${initialType === 'edit_candidate' ? 'selected' : ''}>edit_candidate (候補者データ書き換え)</option>
+                    <option value="change_candidate" ${initialType === 'change_candidate' ? 'selected' : ''}>change_candidate (大統領・副大統領交代)</option>
+                    <option value="delete_candidate" ${initialType === 'delete_candidate' ? 'selected' : ''}>delete_candidate (候補者削除)</option>
+                    <option value="set_custom_flag" ${initialType === 'set_custom_flag' ? 'selected' : ''}>set_custom_flag (カスタムフラグON/OFF)</option>
+                    <option value="add_custom_value" ${initialType === 'add_custom_value' ? 'selected' : ''}>add_custom_value (数値データの加算)</option>
+                </select>
+                <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:#dc3545; padding:2px 6px; font-size:11px;">削除</button>
+            </div>
+            
+            <div class="form-group party-group" style="margin-bottom:5px; font-size:12px;">
+                <label style="font-size:12px;">対象政党 (party)</label>
+                <select class="eff-party-select">
+                    <option value="OWN" ${initialParty === 'OWN' ? 'selected' : ''}>OWN (プレイヤー)</option>
+                    <option value="OPP" ${initialParty === 'OPP' ? 'selected' : ''}>OPP (ライバル)</option>
+                    <option value="" ${initialParty === '' ? 'selected' : ''}>なし / その他</option>
+                </select>
+            </div>
+
+            <!-- ここにタイプ別の入力フィールドが動的に入る -->
+            <div class="eff-dynamic-fields"></div>
+        </div>
+    `;
+            container.insertAdjacentHTML('beforeend', html);
+
+            // 生成したブロックのセレクトボックスをトリガーして、中身の入力欄を初期化・復元する
+            const selectEl = container.lastElementChild.querySelector('.eff-type-select');
+            toggleEffFields(selectEl, existingEff);
+        }
+
+        // タイプに応じて必要な入力欄（value, state, keyなど）だけを表示する
+        function toggleEffFields(selectEl, existingEff = null) {
+            const fieldsContainer = selectEl.parentElement.parentElement.querySelector('.eff-dynamic-fields');
+            const type = selectEl.value;
+            const block = selectEl.parentElement.parentElement;
+
+            // 政党(party)が必要ないタイプは政党選択を隠す
+            const partyGroup = block.querySelector('.party-group');
+            if (["edit_candidate", "change_candidate", "delete_candidate", "set_custom_flag", "add_custom_value"].includes(type)) {
+                partyGroup.style.display = 'none';
+            } else {
+                partyGroup.style.display = 'block';
+            }
+
+            let html = '';
+            // 既存データがあればそれを初期値にし、無ければ空にする処理
+            const getVal = (key, defaultVal = '') => existingEff && existingEff[key] !== undefined ? existingEff[key] : defaultVal;
+
+            // あなたの「applyEventChoice」の条件分岐と完全に一致させる
+            if (type === 'support_all') {
+                html = `<label style="font-size:12px;">変化値 (value)</label><input type="text" class="v-value" value="${getVal('value', '0.05')}">`;
+            } else if (type === 'support_state') {
+                html = `
+            <label style="font-size:12px;">対象の州ID (state)</label><input type="text" class="v-state" value="${getVal('state', 'NY')}" placeholder="NY, CAなど">
+            <label style="font-size:12px;">変化値 (value)</label><input type="text" class="v-value" value="${getVal('value', '0.05')}">
+        `;
+            } else if (type === 'edit_candidate') {
+                html = `
+            <label style="font-size:12px;">対象候補者ID (target)</label><input type="text" class="v-target" value="${getVal('target', 'hoover')}">
+            <label style="font-size:12px;">書き換えるキー (key)</label><input type="text" class="v-key" value="${getVal('key', 'image')}" placeholder="imageなど">
+            <label style="font-size:12px;">新しい値 (value)</label><input type="text" class="v-value" value="${getVal('value', '')}">
+        `;
+            } else if (type === 'change_candidate') {
+                html = `
+            <label style="font-size:12px;">新大統領候補ID (selectedpresident ※無ければ空欄)</label><input type="text" class="v-pres" value="${getVal('selectedpresident', '')}">
+            <label style="font-size:12px;">新副大統領候補ID (selectedmate ※無ければ空欄)</label><input type="text" class="v-mate" value="${getVal('selectedmate', '')}">
+        `;
+            } else if (type === 'delete_candidate') {
+                html = `
+            <label style="font-size:12px;">削除する候補者ID (target)</label><input type="text" class="v-target" value="${getVal('target', '')}">
+        `;
+            } else if (type === 'set_custom_flag') {
+                const currentBool = getVal('value', true);
+                html = `
+            <label style="font-size:12px;">フラグ名 (key)</label><input type="text" class="v-key" value="${getVal('key', '')}" placeholder="例: 1928_lowden_persuaded">
+            <label style="font-size:12px;">値 (value)</label>
+            <select class="v-value-bool">
+                <option value="true" ${currentBool === true ? 'selected' : ''}>true (ON)</option>
+                <option value="false" ${currentBool === false ? 'selected' : ''}>false (OFF)</option>
+            </select>
+        `;
+            } else if (type === 'add_custom_value') {
+                html = `
+            <label style="font-size:12px;">変数名 (key)</label><input type="text" class="v-key" value="${getVal('key', '')}" placeholder="例: scandal_points">
+            <label style="font-size:12px;">加算値 (value)</label><input type="text" class="v-value" value="${getVal('value', '1')}">
+        `;
+            }
+
+            fieldsContainer.innerHTML = html;
+        }
+
+        // 保存時の回収ロジックの差し替え
+        const choiceBoxes = document.querySelectorAll('.choice-box');
+        choiceBoxes.forEach((box, cIndex) => {
+            if (!ev.choices[cIndex]) ev.choices[cIndex] = {};
+
+            ev.choices[cIndex].text = box.querySelector('.choice-text-input').value;
+            ev.choices[cIndex].historical = box.querySelector('.choice-historical-check').checked;
+
+            try {
+                ev.choices[cIndex].advisorText = JSON.parse(box.querySelector('.choice-advisor-json').value);
+            } catch (e) { /* エラー処理 */ }
+
+            // 💡 ここでGUIから effects を綺麗に回収・再構築する！
+            ev.choices[cIndex].effects = [];
+            const effectBlocks = box.querySelectorAll('.effect-item-block');
+
+            effectBlocks.forEach(block => {
+                const type = block.querySelector('.eff-type-select').value;
+                const party = block.querySelector('.eff-party-select').value;
+
+                let eff = { type };
+                if (party && !["edit_candidate", "change_candidate", "delete_candidate", "set_custom_flag", "add_custom_value"].includes(type)) {
+                    eff.party = party;
+                }
+
+                // タイプごとに必要な入力フィールドの値をクラス名からピンポイントで引っこ抜く
+                if (type === 'support_all') {
+                    eff.value = Number(block.querySelector('.v-value').value);
+                } else if (type === 'support_state') {
+                    eff.state = block.querySelector('.v-state').value.trim();
+                    eff.value = Number(block.querySelector('.v-value').value);
+                } else if (type === 'edit_candidate') {
+                    eff.target = block.querySelector('.v-target').value.trim();
+                    eff.key = block.querySelector('.v-key').value.trim();
+                    eff.value = block.querySelector('.v-value').value;
+                } else if (type === 'change_candidate') {
+                    const pres = block.querySelector('.v-pres').value.trim();
+                    const mate = block.querySelector('.v-mate').value.trim();
+                    if (pres) eff.selectedpresident = pres;
+                    if (mate) eff.selectedmate = mate;
+                } else if (type === 'delete_candidate') {
+                    eff.target = block.querySelector('.v-target').value.trim();
+                } else if (type === 'set_custom_flag') {
+                    eff.key = block.querySelector('.v-key').value.trim();
+                    eff.value = block.querySelector('.v-value-bool').value === 'true';
+                } else if (type === 'add_custom_value') {
+                    eff.key = block.querySelector('.v-key').value.trim();
+                    eff.value = Number(block.querySelector('.v-value').value);
+                }
+
+                ev.choices[cIndex].effects.push(eff);
+            });
+        });
+
+        // 変更を適用する部分（一部分だけの安全設計に修正版）
+        function saveCurrentEvent() {
+            if (currentSelectedIndex === -1) return;
+
+            const ev = localEvents[currentSelectedIndex];
+            ev.id = document.getElementById('eventId').value.trim();
+            ev.title = document.getElementById('eventTitle').value.trim();
+
+            const targetRaw = document.getElementById('eventTarget').value;
+            ev.target = targetRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            ev.date = document.getElementById('eventDate').value.trim();
+            ev.desc = document.getElementById('eventDesc').value;
+
+            const choiceBoxes = document.querySelectorAll('.choice-box');
+            let hasError = false;
+
+            choiceBoxes.forEach((box) => {
+                const cIndex = parseInt(box.getAttribute('data-choice-index'));
+                if (!ev.choices[cIndex]) ev.choices[cIndex] = {};
+
+                ev.choices[cIndex].text = box.querySelector('.choice-text-input').value;
+                ev.choices[cIndex].historical = box.querySelector('.choice-historical-check').checked;
+
+                try {
+                    ev.choices[cIndex].advisorText = JSON.parse(box.querySelector('.choice-advisor-json').value);
+                } catch (e) {
+                    alert(`選択肢 ${cIndex + 1} のアドバイザーJSONに構文エラーがあります。`);
+                    hasError = true;
+                }
+
+                // 💡 ここからがエラー（undefinedのvalue）を回避する安全な回収ロジックです
+                ev.choices[cIndex].effects = [];
+                const effectBlocks = box.querySelectorAll('.effect-item-block');
+
+                effectBlocks.forEach(block => {
+                    const type = block.querySelector('.eff-type-select').value;
+                    const partySelect = block.querySelector('.eff-party-select');
+                    const party = partySelect ? partySelect.value : '';
+
+                    let eff = { type };
+                    if (party && !["edit_candidate", "change_candidate", "delete_candidate", "set_custom_flag", "add_custom_value"].includes(type)) {
+                        eff.party = party;
+                    }
+
+                    // 【対策】要素が画面に存在するかチェックしてから値を引っこ抜くヘルパー
+                    const getElVal = (selector) => {
+                        const el = block.querySelector(selector);
+                        return el ? el.value : '';
+                    };
+
+                    if (type === 'support_all') {
+                        eff.value = Number(getElVal('.v-value'));
+                    } else if (type === 'support_state') {
+                        eff.state = getElVal('.v-state').trim();
+                        eff.value = Number(getElVal('.v-value'));
+                    } else if (type === 'edit_candidate') {
+                        eff.target = getElVal('.v-target').trim();
+                        eff.key = getElVal('.v-key').trim();
+                        eff.value = getElVal('.v-value');
+                    } else if (type === 'change_candidate') {
+                        const pres = getElVal('.v-pres').trim();
+                        const mate = getElVal('.v-mate').trim();
+                        if (pres) eff.selectedpresident = pres;
+                        if (mate) eff.selectedmate = mate;
+                    } else if (type === 'delete_candidate') {
+                        eff.target = getElVal('.v-target').trim();
+                    } else if (type === 'set_custom_flag') {
+                        eff.key = getElVal('.v-key').trim();
+                        eff.value = getElVal('.v-value-bool') === 'true';
+                    } else if (type === 'add_custom_value') {
+                        eff.key = getElVal('.v-key').trim();
+                        eff.value = Number(getElVal('.v-value'));
+                    }
+
+                    ev.choices[cIndex].effects.push(eff);
+                });
+            });
+
+            if (!hasError) {
+                alert('イベント情報を更新しました！');
+                initList();
+                loadEventToForm(currentSelectedIndex);
+            }
+        }
+
+        function updateOutputText() {
+            document.getElementById('jsonOutput').textContent = JSON.stringify(localEvents, null, 4);
+        }
+        // クリップボードへコピー
+        function exportJSON() {
+            updateOutputText();
+            const jsonText = document.getElementById('jsonOutput').textContent;
+            navigator.clipboard.writeText(jsonText).then(() => {
+                alert('最新のJSONデータをコピーしました！');
+            });
+        }
+        // ファイルとしてダウンロード
+        function downloadJSONFile() {
+            updateOutputText();
+            const jsonText = document.getElementById('jsonOutput').textContent;
+            const blob = new Blob([jsonText], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'events_updated.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
