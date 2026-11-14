@@ -48,7 +48,23 @@ mapData["1928"] = {
             "party": "DEM",
             "home": "NY",
             "power": 10,
-            "desc": "ニューヨークの星。東海岸の支持を底上げする。"
+            "desc": "ニューヨークの星。東海岸の支持を底上げする。",
+            "onTurnEnd": (agent, ownerData) => {
+                const eastCoastStates = ["NY"];
+                eastCoastStates.forEach(stateId => {
+                    updateStateSupport(stateId, ownerData.party, 0.05);
+                });
+
+                const statesaaa = ["CA", "NV", "OR", "WA", "IL", "WI", "MI", "IA", "TX"];
+                statesaaa.forEach(stateId => {
+                    updateStateSupport(stateId, ownerData.party, -0.05);
+                });
+
+                if (agent.currentState === agent.home) {
+                    updateStateSupport("NY", ownerData.party, 0.1);
+                    showSpeechBubble({ name: agent.name }, "NY", "地元ニューヨークは私にお任せください！");
+                }
+            }
         },
         {
             "id": "huey",
@@ -59,6 +75,53 @@ mapData["1928"] = {
             "power": 15,
             "desc": "南部のポピュリスト"
         },
+        {
+            "id": "coolidge",
+            "image": "./img/cand/coolidge.png",
+            "name": "カルビン・クーリッジ",
+            "party": "GOP",
+            "home": "MA",
+            "power": 13,
+            "desc": "現職大統領。「クーリッジの繁栄」の象徴としてニューイングランドとビジネス層を固めるが、農村部では反発もある。",
+            "onTurnEnd": (agent, ownerData) => {
+                // ニューイングランド地方の支持を底上げ
+                const newEngland = ["MA", "VT", "NH", "ME", "CT", "RI"];
+                newEngland.forEach(stateId => {
+                    updateStateSupport(stateId, ownerData.party, 0.04);
+                });
+
+                // 農業不況に苦しむ中西部の一部ではわずかに反発を受ける
+                const farmStates = ["IA", "ND", "SD", "NE", "KS"];
+                farmStates.forEach(stateId => {
+                    updateStateSupport(stateId, ownerData.party, -0.04);
+                });
+
+                if (agent.currentState === agent.home) {
+                    updateStateSupport("MA", ownerData.party, 0.1);
+                }
+            }
+        },
+        {
+            "id": "hughes",
+            "name": "チャールズ・E・ヒューズ",
+            "party": "GOP",
+            "home": "NY",
+            "power": 12,
+            "desc": "元NY州知事・国務長官。スミスとルーズベルトの牙城であるニューヨークを正面から切り崩す。",
+            "onTurnEnd": (agent, ownerData) => {
+                // 東部の大票田（NY・PA・NJ）で安定した支持を獲得
+                const easternBigStates = ["NY", "PA", "NJ"];
+                easternBigStates.forEach(stateId => {
+                    updateStateSupport(stateId, ownerData.party, 0.04);
+                });
+
+                if (agent.currentState === "NY") {
+                    updateStateSupport("NY", ownerData.party, 0.08);
+                }
+            }
+        },
+
+
         {
             "id": "bob",
             "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Portrait_of_Senator_Robert_Lafolette_Jr._Trim_Edit_3x4.jpg/250px-Portrait_of_Senator_Robert_Lafolette_Jr._Trim_Edit_3x4.jpg",

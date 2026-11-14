@@ -5,31 +5,34 @@ window.addEventListener('load', initMenu);
 function setupEvents() {
     let startX, startY;
 
+
     document.querySelectorAll('path').forEach(stateEl => {
-        // 1. マウス（または指）が押された瞬間の座標を記録
-        stateEl.addEventListener('mousedown', function (e) {
+        // 1. マウスまたは指が触れた瞬間の座標を記録
+        stateEl.addEventListener('pointerdown', function (e) {
             startX = e.clientX;
             startY = e.clientY;
         });
 
         // 2. 離されたときに、押した時との距離を比べる
-        stateEl.addEventListener('mouseup', function (e) {
+        stateEl.addEventListener('pointerup', function (e) {
+            // startX が記録されていない場合は無視
+            if (startX === undefined || startY === undefined) return;
+
             const diffX = Math.abs(e.clientX - startX);
             const diffY = Math.abs(e.clientY - startY);
 
-            // 距離が5ピクセル以上なら「これはドラッグだ」とみなして何もしない
-            if (diffX > 5 || diffY > 5) {
-                return;
-            }
-            const stateId = this.id;
-            const stateData = currentMap.states[stateId];
-            const support = stateSupport[stateId];
-            const stateName = stateData?.name || stateId;
-            const classList = (stateData?.class || "").split(/\s+/);
-            const isAppoint = classList.includes("appoint");
-            if (typeof stateData.votes === 'undefined') return;
-            if (!stateData || !support) {
-                openModal(`${stateName}の情勢`, `
+            // ドラッグ（スワイプ）ではなくタップ・クリックとみなす判定（例: 10px未満）
+            if (diffX < 10 && diffY < 10) {
+
+                const stateId = this.id;
+                const stateData = currentMap.states[stateId];
+                const support = stateSupport[stateId];
+                const stateName = stateData?.name || stateId;
+                const classList = (stateData?.class || "").split(/\s+/);
+                const isAppoint = classList.includes("appoint");
+                if (typeof stateData.votes === 'undefined') return;
+                if (!stateData || !support) {
+                    openModal(`${stateName}の情勢`, `
                 <p><strong>選挙人数:</strong> ${stateData.votes}票</p>
                 <hr>
                 <center>データなし</center>
@@ -37,37 +40,37 @@ function setupEvents() {
                         <button onclick="executeCampaign('${stateId}')" class="campaign-btn">
                             ここに行く
                         </button>`
-                    }
+                        }
             `);
-                return;
-            };
+                    return;
+                };
 
 
-            // -------------------------------------------------------------
-            // ⭐【追加】予測される勝者・選挙人の計算ロジック
-            // -------------------------------------------------------------
-            let winnerText = "";
-            const totalVotes = stateData.votes || 0;
+                // -------------------------------------------------------------
+                // ⭐【追加】予測される勝者・選挙人の計算ロジック
+                // -------------------------------------------------------------
+                let winnerText = "";
+                const totalVotes = stateData.votes || 0;
 
-            // 支持率（support）のオブジェクトから、[政党ID, 支持率] の配列を作ってソート
-            const sortedSupport = Object.entries(support)
-                .filter(([_, val]) => val > 0)
-                .sort((a, b) => b[1] - a[1]); // 支持率が高い順
-            if (isWinnerTakeAll) {
-                // 【勝者総取り（通常ルール）】 1位の政党が全選挙人を獲得
-                // ⭐【修正】 sortedSupport の「0番目（1位）」をしっかり指定して分解する！
-                const [topPartyId, topVal] = sortedSupport[0];
+                // 支持率（support）のオブジェクトから、[政党ID, 支持率] の配列を作ってソート
+                const sortedSupport = Object.entries(support)
+                    .filter(([_, val]) => val > 0)
+                    .sort((a, b) => b[1] - a[1]); // 支持率が高い順
+                if (isWinnerTakeAll) {
+                    // 【勝者総取り（通常ルール）】 1位の政党が全選挙人を獲得
+                    // ⭐【修正】 sortedSupport の「0番目（1位）」をしっかり指定して分解する！
+                    const [topPartyId, topVal] = sortedSupport[0];
 
-                const party = currentMap.parties.find(p => p.id === topPartyId);
-                const color = party ? party.color : "#000";
+                    const party = currentMap.parties.find(p => p.id === topPartyId);
+                    const color = party ? party.color : "#000";
 
-                const candidateList = Object.values(currentMap.candidates || {});
-                const candidate = candidateList.find(c => c.party === topPartyId);
+                    const candidateList = Object.values(currentMap.candidates || {});
+                    const candidate = candidateList.find(c => c.party === topPartyId);
 
-                const candidateName = candidate ? candidate.name : `${topPartyId}候補`;
-                const iconUrl = candidate ? candidate.image : "./img/cand/default.png";
+                    const candidateName = candidate ? candidate.name : `${topPartyId}候補`;
+                    const iconUrl = candidate ? candidate.image : "./img/cand/default.png";
 
-                winnerText = `
+                    winnerText = `
         <p><strong>予測される勝者:</strong><br>
             <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 1.1em; color: ${color}; font-weight: bold;">
                 <img src="${iconUrl}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid ${color};">
@@ -75,56 +78,56 @@ function setupEvents() {
             </span>
             （${totalVotes}票獲得）
         </p>`;
-            }
-            else {
-                // 【比例配分ルール】 支持率に応じて選挙人を分配
-                winnerText = `<p><strong>予測される勝者:</strong><br>`;
-                sortedSupport.forEach(([pid, val]) => {
-                    const party = currentMap.parties.find(p => p.id === pid);
-                    const color = party ? party.color : "#000";
+                }
+                else {
+                    // 【比例配分ルール】 支持率に応じて選挙人を分配
+                    winnerText = `<p><strong>予測される勝者:</strong><br>`;
+                    sortedSupport.forEach(([pid, val]) => {
+                        const party = currentMap.parties.find(p => p.id === pid);
+                        const color = party ? party.color : "#000";
 
-                    // party（政党ID）が一致する候補者を探す
-                    const candidateList = Object.values(currentMap.candidates || {});
-                    const candidate = candidateList.find(c => c.party === pid);
+                        // party（政党ID）が一致する候補者を探す
+                        const candidateList = Object.values(currentMap.candidates || {});
+                        const candidate = candidateList.find(c => c.party === pid);
 
-                    const candidateName = candidate ? candidate.name : `${pid}`;
-                    const iconUrl = candidate ? candidate.image : "./img/cand/default.png";
+                        const candidateName = candidate ? candidate.name : `${pid}`;
+                        const iconUrl = candidate ? candidate.image : "./img/cand/default.png";
 
-                    // 支持率の割合（val / 100）をかけて割り当て票数を計算
-                    const allocatedVotes = Math.round((val / 100) * totalVotes);
-                    if (allocatedVotes > 0) {
-                        winnerText += `
+                        // 支持率の割合（val / 100）をかけて割り当て票数を計算
+                        const allocatedVotes = Math.round((val / 100) * totalVotes);
+                        if (allocatedVotes > 0) {
+                            winnerText += `
                 <span style="display: inline-flex; align-items: center; gap: 6px; margin: 4px 0; color: ${color}; font-weight: bold;">
                     <img src="${iconUrl}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${color};">
                     ${candidateName}: <strong>${allocatedVotes}票</strong> (${val.toFixed(1)}%)
                 </span><br>`;
-                    }
-                });
-                winnerText += `</p>`;
-            }
+                        }
+                    });
+                    winnerText += `</p>`;
+                }
 
 
-            // 2. モーダルに表示するコンテンツを作成
-            // 各政党の支持率をリスト化する
-            let supportDetails = "<ul>";
-            Object.entries(support).forEach(([pid, val]) => {
-                const party = currentMap.parties.find(p => p.id === pid);
-                const partyName = party ? party.name : pid;
-                const color = party ? party.color : "#000";
-                if (val === 0) return;
-                // バーチャート風の見た目にする
-                supportDetails += `
+                // 2. モーダルに表示するコンテンツを作成
+                // 各政党の支持率をリスト化する
+                let supportDetails = "<ul>";
+                Object.entries(support).forEach(([pid, val]) => {
+                    const party = currentMap.parties.find(p => p.id === pid);
+                    const partyName = party ? party.name : pid;
+                    const color = party ? party.color : "#000";
+                    if (val === 0) return;
+                    // バーチャート風の見た目にする
+                    supportDetails += `
                     <li style="list-style:none; margin: 10px 0;">
                         <strong>${partyName}</strong>: ${val.toFixed(1)}%
                         <div style="background:#eee; width:100%; height:10px; border-radius:5px;">
                             <div style="background:${color}; width:${val}%; height:100%; border-radius:5px;"></div>
                         </div>
                     </li>`;
-            });
-            supportDetails += "</ul>";
+                });
+                supportDetails += "</ul>";
 
-            // 3. 汎用モーダルを開く
-            openModal(`${stateName}の情勢`, `
+                // 3. 汎用モーダルを開く
+                openModal(`${stateName}の情勢`, `
         <p><strong>選挙人数:</strong> ${totalVotes}票</p>
         ${winnerText}
         <hr>
@@ -133,11 +136,17 @@ function setupEvents() {
                         <button onclick="executeCampaign('${stateId}')" class="campaign-btn">
                             ここに行く
                         </button>`
-                }
+                    }
             `);
+            }
+
+            // 座標をリセット
+            startX = undefined;
+            startY = undefined;
         });
     });
 }
+
 function checkNpcHiring(npcId, stateId) {
     const npc = currentMap.candidates[npcId];
     if (!npc) return;
@@ -300,6 +309,7 @@ function confirmFire(agentId) {
     closeModal();
     alert(`${agent.name} を解雇しました。`);
 }
+
 function getBestStateForParty(partyId) {
     const candiId = Object.keys(currentMap.candidates).find(id => currentMap.candidates[id].party === partyId);
     const candi = currentMap.candidates[candiId];
@@ -309,17 +319,18 @@ function getBestStateForParty(partyId) {
 
     const isIncumbent = candi.isIncumbent || candi.power === "現職";
     const topTwoPartyIds = [...currentMap.parties]
-        .sort((a, b) => b.seats - a.seats)
         .slice(0, 2)
         .map(party => party.id); // 例: ["LDP", "CDP"]
 
     // 2. 上位2政党に含まれていない場合は「諸派（Third Party）」と判定する
     const isThirdParty = !topTwoPartyIds.includes(partyId);
     const cutoffLine = isThirdParty ? 0 : 35; // 🌟サードパーティの足切りを完全にゼロ化（絶対に0点にしない）
-
     let stateScores = stateIds.map(sId => {
         const stateData = currentMap.states[sId];
-        const support = stateSupport[sId] || {};
+        // ★修正1：まだ stateSupport にデータがない州は baseSupport を参照する
+        const support = (stateSupport[sId] && Object.keys(stateSupport[sId]).length > 0)
+            ? stateSupport[sId]
+            : (stateData.baseSupport || {});
         const sClass = stateData.class || "";
 
         // 浮動票の補正計算
@@ -329,7 +340,9 @@ function getBestStateForParty(partyId) {
             Object.entries(support).forEach(([pid, val]) => {
                 if (pid === "GOP" || pid === "DEM") majorSupportSum += val;
             });
-            mySupport = Math.max(0, 100 - majorSupportSum);
+            // ベースデータに「100%に満たない余り（第三党の余白）」がある場合のみそれを拾う
+            const remainder = Math.max(0, 100 - majorSupportSum);
+            mySupport = remainder > 0 ? remainder : 1.0; // 余白がなくても最低1.0の探索意欲を持たせる
         }
 
         // ランキングの作成
@@ -344,56 +357,61 @@ function getBestStateForParty(partyId) {
         const rivalSupport = (leadingParty === partyId && sorted.length > 1) ? sorted[1].score : maxSupport;
         const margin = Math.abs(mySupport - rivalSupport);
 
-        // 🌟 基本スコア（アラスカ対策：アラスカ(AK)なら強制的に基本スコアを落とす）
-        let score = (sId === "AK") ? 1 : 20;
+        // 🌟 基本スコア（アラスカ対策：アラスカ(AK)なら基本スコアを落とす）
+        let score = (sId === "AK") ? 5 : 25;
 
         if (isThirdParty) {
-            // 諸派は巨大州を狙うより、地道に票を稼ぐために票数の重みをかなり小さくする（15.0 → 2.0など）
-            score += (stateData.votes || 3) * 2.0;
+            // ★修正2：諸派も人口（選挙人数）の多い州（NY, CA, IL, MAなど）に一定の関心を持たせる
+            score += (stateData.votes || 3) * 4.5;
         } else {
             // 主要2大政党（GOP/DEM）は今まで通り巨大州に強烈な引力を生ませる
             score += (stateData.votes || 3) * 15.0;
         }
+
         if (candi.region && candi.region !== "NONE" && sClass.includes(candi.region)) {
             score += 25;
         }
 
-        // 🛠️ 修正部分：足切りと激戦区（スイング・ステート）判定
+        // 🛠️ 足切りと激戦区（スイング・ステート）判定
         if (!isThirdParty && (sClass.includes(`anti-${partyId}`) || mySupport < cutoffLine)) {
-            // 主要政党（GOP/DEM）用の足切り
             score = -999;
         } else if (sClass.includes("appoint")) {
             score = -999;
         } else if (isThirdParty) {
-            // 🌟 諸派専用のスコアリング（勝ち負け関係なく、支持率が高い州を優先して狙う）
-            if (sClass.includes(`anti-${partyId}`) || mySupport <= 0) {
-                score = 0; // 支持率が完全に0％、または明確なアンチ州なら0点
+            // ★修正3：一点集中（スノーボール）防止ロジック
+            if (sClass.includes(`anti-${partyId}`)) {
+                score = 0;
+            } else if (mySupport >= 20) {
+                // すでに20%以上稼いだ州は「開拓済み」として優先度を大きく下げ、他の州へ行かせる
+                score *= 0.2;
             } else {
-                score += mySupport * 10.0; // 支持率が高い州ほど高スコア（例: 5%なら+50点）
+                // 倍率を 10.0 → 2.5 に抑えて、同じ州ばかり選ばれないようにする
+                score += mySupport * 2.5;
             }
         } else {
             // 主要政党（GOP/DEM）の激戦区判定（既存のロジック）
             if (leadingParty === partyId) {
                 if (margin < 5) {
-                    score += 60; // 🌟超危険！今すぐ守れ！（最優先）
+                    score += 60;
                 } else if (margin < 12) {
-                    score += 40; // 安全圏に入れたいので補強
+                    score += 40;
                 } else {
-                    score += 0;  // 大勝している州は放置（リソースの無駄）
+                    score += 0;
                 }
             } else {
                 if (margin < 5) {
-                    score += 70; // 🌟あと一歩で奪える！最大チャンス（最優先）
+                    score += 70;
                 } else if (margin < 15) {
-                    score += 45; // 射程圏内、攻め込む価値あり
+                    score += 45;
                 } else if (margin >= 60) {
-                    score = 0;   // 🌟大差で負けている州は「捨て州」にする（主要政党のみ）
+                    score = 0;
                 }
             }
         }
 
         return { id: sId, score: Math.max(0, score) };
     });
+
 
     const totalScore = stateScores.reduce((sum, item) => sum + item.score, 0);
 
@@ -415,7 +433,6 @@ function getBestStateForParty(partyId) {
     return stateIds[Math.floor(Math.random() * stateIds.length)];
 }
 
-
 function runAgentsTurn() {
     currentMap.agents.forEach(agent => {
         if (!agent.owner) return;
@@ -424,7 +441,7 @@ function runAgentsTurn() {
         const ownerData = currentMap.candidates[agent.owner];
         if (!ownerData) return;
 
-        // ❌ ランダムを廃止し、雇い主の政党にとって「今一番おいしい州」をAIに選ばせる！
+        // 雇い主の政党にとって「今一番おいしい州」をAIに選ばせる
         const targetId = getBestStateForParty(ownerData.party);
 
         agent.currentState = targetId;
@@ -432,15 +449,19 @@ function runAgentsTurn() {
         // 応援の効果量計算
         const boost = Math.floor(Math.random() * agent.power) + 3;
 
-        // 先ほど統合した共通の選挙活動関数（executeCampaign）をエージェントでも使いたい場合は以下のように、
-        // あるいは既存のupdateStateSupportのままでもOKです
+        // 通常の選挙活動
         updateStateSupport(targetId, ownerData.party, boost);
-
         showSpeechBubble({ name: agent.name }, targetId, `応援に駆けつけました！`);
+
+        // ★追加：固有スキル（onTurnEnd）を持っていれば実行する
+        if (typeof agent.onTurnEnd === "function") {
+            agent.onTurnEnd(agent, ownerData);
+        }
     });
 
     updateCandidateIcons();
 }
+
 
 
 // 実際に「演説」ボタンを押した時の処理
@@ -631,6 +652,7 @@ function advanceTime() {
         finishGame();
     }
 }
+
 function updateStateSupport(stateId, partyId, amount) {
     const stateData = currentMap.states[stateId];
     if (!stateSupport[stateId]) {
@@ -900,6 +922,8 @@ async function startScenario(config) {
 
     if (!audio.src && PLAYLIST.length > 0) {
         loadTrack(0, true);
+    } else {
+        document.getElementById('js-mp-container').style.display = 'none';
     }
 
     updateStepUI();
@@ -1424,13 +1448,16 @@ async function confirmSetup() {
 
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('main-game').style.display = 'block';
-
+    presData = currentMap.candidates[selectedPresident];
+    mateData = currentMap.candidates[selectedMate];
     // マップ読み込み（既存のロジック）
     const source = await getMapSource(currentMap.mapSource);
     currentMap.mapSource = source;
-    updateMainCandidateDisplay(selectedPresident, selectedMate);
     setupOpponent(selectedPresident);
+
+    processEvents();
     setupEvents();
+
     currentMap.agents.forEach(a => {
         if (!a.owner) {
             a.owner = null;
@@ -1723,28 +1750,59 @@ function openFinalSummary(scores, topPartyId, maxVotes, winThreshold, isPlayerWi
     highlightBox.innerHTML = "";
 
     const stateResults = []; // 分析用データ配列
+    const nationalTotals = {};
+    currentMap.parties.forEach(p => {
+        const cand = getCandidateForParty(p.id);
+        nationalTotals[p.id] = {
+            partyId: p.id,
+            partyName: p.name,
+            candName: cand.name,
+            color: p.color || "#666",
+            electoralVotes: 0,
+            weightedPctSum: 0
+        };
+    });
+
+    let totalElectoralVotes = 0;
 
     Object.entries(currentMap.states).forEach(([stateId, st]) => {
-        if (!st.votes || st.votes <= 0) return; // 選挙人0票の州（当時のNYなど）は除外
+        if (!st.votes || st.votes <= 0) return; // 選挙人0票の州は除外
 
-        const supportData = st.currentSupport || st.baseSupport || {};
+        totalElectoralVotes += st.votes;
+
+        const supportData = (typeof stateSupport !== 'undefined' && stateSupport[stateId])
+            || st.currentSupport
+            || st.baseSupport
+            || {};
         const stateName = st.name || stateId;
 
-        // 全政党の得票率を集めて高い順にソート（1位と2位の差を計算するため）
+        // 全政党の得票率を集めて高い順にソート
         const ranking = currentMap.parties.map(p => {
             const cand = getCandidateForParty(p.id);
+            const pct = Number(supportData[p.id] || 0);
+
+            // ★追加：全米得票率の計算用（選挙人数で重み付け）
+            if (nationalTotals[p.id]) {
+                nationalTotals[p.id].weightedPctSum += pct * st.votes;
+            }
+
             return {
                 partyId: p.id,
                 partyName: p.name,
                 candName: cand.name,
                 color: p.color || "#666",
-                pct: Number(supportData[p.id] || 0)
+                pct: pct
             };
         }).sort((a, b) => b.pct - a.pct);
 
         const first = ranking[0];
         const second = ranking[1] || { pct: 0, candName: "-" };
-        const margin = first.pct - second.pct; // 1位と2位の点差
+        const margin = first.pct - second.pct;
+
+        // ★追加：1位の候補にその州の選挙人票をすべて加算（勝者総取り）
+        if (first && nationalTotals[first.partyId]) {
+            nationalTotals[first.partyId].electoralVotes += st.votes;
+        }
 
         stateResults.push({ stateId, stateName, votes: st.votes, ranking, first, second, margin });
 
@@ -1753,63 +1811,96 @@ function openFinalSummary(scores, topPartyId, maxVotes, winThreshold, isPlayerWi
             .map(r => `<div class="mini-bar-seg" style="width: ${r.pct}%; background: ${r.color};" title="${r.candName}: ${r.pct.toFixed(1)}%"></div>`)
             .join("");
 
-        // 横並びの得票率テキスト（改行だらけを解消）
+        // 横並びの得票率テキスト
         const pctListHtml = ranking
+            .filter(r => r.pct.toFixed(1) !== "0.0")
             .map(r => `<span><strong style="color:${r.color};">■</strong> ${r.candName} ${r.pct.toFixed(1)}%</span>`)
             .join("");
 
-        // 接戦ラベル（5%未満なら「激戦」表示）
+
         const marginLabel = margin < 5.0 ? `🔥 接戦 (+${margin.toFixed(1)}%)` : `+${margin.toFixed(1)}%`;
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td>
-                <strong>${stateName}</strong><br>
-                <small>${st.votes} 票</small>
-            </td>
-            <td>
-                <strong style="color: ${first.color};">${first.candName}</strong>
-                <span class="margin-badge">${marginLabel}</span>
-            </td>
-            <td>
-                <div class="mini-bar-wrap">${barSegmentsHtml}</div>
-                <div class="mini-pct-list">${pctListHtml}</div>
-            </td>
-        `;
+        <td>
+            <strong>${stateName}</strong><br>
+            <small>${st.votes} 票</small>
+        </td>
+        <td>
+            <strong style="color: ${first.color};">${first.candName}</strong>
+            <span class="margin-badge">${marginLabel}</span>
+        </td>
+        <td>
+            <div class="mini-bar-wrap">${barSegmentsHtml}</div>
+            <div class="mini-pct-list">${pctListHtml}</div>
+        </td>
+    `;
         tbody.appendChild(tr);
     });
+
+    // ★追加：全米の最終結果をソートして計算
+    const majorityLine = Math.floor(totalElectoralVotes / 2) + 1;
+    const nationalRanking = Object.values(nationalTotals).map(n => ({
+        ...n,
+        popularVotePct: totalElectoralVotes > 0 ? (n.weightedPctSum / totalElectoralVotes) : 0
+    })).sort((a, b) => b.electoralVotes - a.electoralVotes || b.popularVotePct - a.popularVotePct);
+
+    const nationalWinner = nationalRanking[0];
+
+    // ★追加：タブ1（選挙の総括）のタイトル・獲得票数も実際の結果に書き換える
+    if (nationalWinner) {
+        const headlineEl = document.getElementById("summaryHeadline");
+        const sublineEl = document.getElementById("summarySubline");
+        const badgeEl = document.getElementById("summaryOutcomeBadge");
+
+        const isMajority = nationalWinner.electoralVotes >= majorityLine;
+        if (badgeEl) badgeEl.textContent = isMajority ? "当選" : "最多得票（過半数割れ）";
+        if (headlineEl) headlineEl.textContent = `${nationalWinner.candName}が次期大統領に選出`;
+        if (sublineEl) sublineEl.textContent = `獲得票数: ${nationalWinner.electoralVotes}票 / 過半数ライン: ${majorityLine}票（得票率: ${nationalWinner.popularVotePct.toFixed(1)}%）`;
+    }
+    const nationalRowsHtml = nationalRanking.map(n => `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin: 6px 0; padding-bottom: 4px; border-bottom: 1px solid #eee;">
+            <span><strong style="color:${n.color};">■</strong> <strong>${n.candName}</strong>（${n.partyName}）</span>
+            <span><strong>${n.electoralVotes} 票</strong> <small>（得票率 ${n.popularVotePct.toFixed(1)}%）</small></span>
+        </div>
+    `).join("");
     // ★ 5. 注目地域ハイライトの自動抽出
     if (stateResults.length > 0) {
-        // ① 最も接戦だった地域（点差が最小の州）
-        const closest = [...stateResults].sort((a, b) => a.margin - b.margin)[0];
-
-        // ② 最も大差がついた地域（点差が最大の州）
-        const blowout = [...stateResults].sort((a, b) => b.margin - a.margin)[0];
+        // ★追加：一番上に「全米の最終結果サマリーカード」を作成
 
         let cardsHtml = `
-            <div class="highlight-card">
-                <div class="highlight-card-title">🔥 最も接戦だった地域</div>
-                <strong>${closest.stateName}</strong>（${closest.votes}票）<br>
-                ${closest.first.candName}が${closest.second.candName}をわずか <strong>${closest.margin.toFixed(1)}%差</strong> で制す
-            </div>
-            <div class="highlight-card">
-                <div class="highlight-card-title">👑 最も大差がついた地域</div>
-                <strong>${blowout.stateName}</strong>（${blowout.votes}票）<br>
-                ${blowout.first.candName}が <strong>${blowout.first.pct.toFixed(1)}%</strong> を獲得し圧勝（+${blowout.margin.toFixed(1)}%）
-            </div>
-        `;
+        <div class="highlight-card" style="grid-column: 1 / -1; border: 2px solid ${nationalWinner ? nationalWinner.color : '#333'};">
+            <div class="highlight-card-title">🏆 結果（過半数ライン: ${majorityLine}票 / 全${totalElectoralVotes}票）</div>
+            ${nationalRowsHtml}
+        </div>
+    `;
 
-        // ▼ 1つ以上の地域で1位（勝利）を獲得した政党IDを重複なしで取得
+        document.getElementById('summaryresulttable').innerHTML = cardsHtml;
+
+        // ① 最も接戦だった地域
+        const closest = [...stateResults].sort((a, b) => a.margin - b.margin)[0];
+        // ② 最も大差がついた地域
+        const blowout = [...stateResults].sort((a, b) => b.margin - a.margin)[0];
+
+        cardsHtml += `
+        <div class="highlight-card">
+            <div class="highlight-card-title">🔥 最も接戦だった地域</div>
+            <strong>${closest.stateName}</strong>（${closest.votes}票）<br>
+            ${closest.first.candName}が${closest.second.candName}をわずか <strong>${closest.margin.toFixed(1)}%差</strong> で制す
+        </div>
+        <div class="highlight-card">
+            <div class="highlight-card-title">👑 最も大差がついた地域</div>
+            <strong>${blowout.stateName}</strong>（${blowout.votes}票）<br>
+            ${blowout.first.candName}が <strong>${blowout.first.pct.toFixed(1)}%</strong> を獲得し圧勝（+${blowout.margin.toFixed(1)}%）
+        </div>
+    `;
+
         const winningPartyIds = new Set(stateResults.map(s => s.first.partyId));
 
-        // 地域を獲得した候補（政党）ごとにカードを生成
         currentMap.parties.forEach(p => {
-            // どの地域でも1位を取れなかった候補はスキップ
             if (!winningPartyIds.has(p.id)) return;
-
             const cand = getCandidateForParty(p.id);
 
-            // 全州での自分のデータを抽出
             const myStates = stateResults.map(s => {
                 const myData = s.ranking.find(r => r.partyId === p.id);
                 return {
@@ -1820,46 +1911,40 @@ function openFinalSummary(scores, topPartyId, maxVotes, winThreshold, isPlayerWi
                 };
             });
 
-            // 最高得票率の州を取得
             const highestState = [...myStates].sort((a, b) => b.myPct - a.myPct)[0];
 
-            // 得票率があれば無条件で最高得票率を追加
             if (highestState && highestState.myPct > 0) {
                 let detailHtml = `
-                    <div>・<strong>最高得票率:</strong> ${highestState.stateName}（${highestState.myPct.toFixed(1)}%）</div>
-                `;
+                <div>・<strong>最高得票率:</strong> ${highestState.stateName}（${highestState.myPct.toFixed(1)}%）</div>
+            `;
 
-                // 敗れた（2位以下だった）州を抽出
                 const lostStates = myStates.filter(s => !s.isWin);
 
                 if (lostStates.length > 0) {
-                    // 敗れた中で一番惜しかった州（善戦）
                     const bestFight = [...lostStates].sort((a, b) => a.diffFromTop - b.diffFromTop)[0];
-                    // 敗れた中で一番差が開いた州（大敗）
                     const worstLoss = [...lostStates].sort((a, b) => b.diffFromTop - a.diffFromTop)[0];
 
                     detailHtml += `
-                        <div>・<strong>善戦:</strong> ${bestFight.stateName}（${bestFight.myPct.toFixed(1)}% / 差 -${bestFight.diffFromTop.toFixed(1)}%）</div>
-                        <div>・<strong>大敗:</strong> ${worstLoss.stateName}（${worstLoss.myPct.toFixed(1)}% / 差 -${worstLoss.diffFromTop.toFixed(1)}%）</div>
-                    `;
+                    <div>・<strong>善戦:</strong> ${bestFight.stateName}（${bestFight.myPct.toFixed(1)}% / 差 -${bestFight.diffFromTop.toFixed(1)}%）</div>
+                    <div>・<strong>大敗:</strong> ${worstLoss.stateName}（${worstLoss.myPct.toFixed(1)}% / 差 -${worstLoss.diffFromTop.toFixed(1)}%）</div>
+                `;
                 } else {
                     detailHtml += `
-                        <div>・<strong>戦績:</strong> 全土で1位を獲得し、完全制覇を達成！</div>
-                    `;
+                    <div>・<strong>戦績:</strong> 全土で1位を獲得し、完全制覇を達成！</div>
+                `;
                 }
 
                 cardsHtml += `
-                    <div class="highlight-card">
-                        <div class="highlight-card-title" style="color:${p.color};">📊 ${cand.name}の注目地域</div>
-                        ${detailHtml}
-                    </div>
-                `;
+                <div class="highlight-card">
+                    <div class="highlight-card-title" style="color:${p.color};">📊 ${cand.name}の注目地域</div>
+                    ${detailHtml}
+                </div>
+            `;
             }
         });
 
         highlightBox.innerHTML = cardsHtml;
     }
-
 
 }
 

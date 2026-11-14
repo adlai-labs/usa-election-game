@@ -1,4 +1,4 @@
-[
+window.loadedScenarioEvents = [
     {
         "id": "prohibition_debate",
         "title": "禁酒法の論争",

@@ -178,26 +178,3 @@ mapData["1788"] = {
     }
 
 };
-
-(function () {
-    console.log("【2024年専用パッチ】本流データの外側から画面や処理を激変させます。");
-
-    // 例：2024年が選ばれた時だけ動くように、ゲーム本体の画面遷移関数（例: selectScenario）を乗っ取る
-    const startScenario = window.startScenario;
-
-    window.startScenario = function (id) {
-        // 本体の元の遷移処理を動かす
-        if (typeof startScenario === 'function') {
-            startScenario(id);
-        }
-
-        // 2024年が選ばれた時だけ、本流の外から文字を強制的に書き換える！
-        if (id.name === "1928") {
-            const titleElement = document.getElementById('presidential-candidate-text');
-            if (titleElement) {
-                titleElement.innerText = "政党を選んでください";
-            }
-        }
-    };
-
-})();

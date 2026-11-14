@@ -3,7 +3,7 @@ mapData["1980"] = {
     "mapName": "1980年アメリカ大統領選挙",
     "mapSource": "USMAP",
     "totalvotesToWin": 270,
-    "startDate": "1977-01-20",
+    "startDate": "1979-01-01",
     "description": "1980年、アメリカは深刻なスタグフレーション（経済不況）とイランアメリカ大使館人質事件に揺れ、現職カーター（民主党）への不満が最高潮に達していた。共和党は保守派の旗手レーガンを擁立。そこに共和党を離党した中道派の<strong>ジョン・B・アンダーソン</strong>が第三極として乱入し、三つ巴の選挙戦が始まる。",
     "electionDate": "1980-11-04",
     "startprimary": true,
@@ -49,10 +49,21 @@ mapData["1980"] = {
             "image": "./img/cand/carter.png",
             "party": "DEM",
             "isMate": false,
-            "primary": true,
+            "primary": false,
             "npc": false,
             "isIncumbent": true,
             "state": "GA"
+        },
+        "clark": {
+            "name": "エド・クラーク",
+            "image": "./img/cand/edclark.png",
+            "party": "LIB",
+            "isMate": false,
+            "primary": false,
+            "npc": true,
+            "isIncumbent": false,
+            "state": "CA",
+            "region": "NONE"
         },
         "anderson": {
             "name": "ジョン・B・アンダーソン",
@@ -89,12 +100,13 @@ mapData["1980"] = {
             "isMate": true,
             "state": "IL"
         },
-        "robinson": {
-            "name": "ジョセフ・T・ロビンソン",
-            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Joseph_T._Robinson_cropped.jpg/250px-Joseph_T._Robinson_cropped.jpg",
+        "mondale": {
+            "name": "ウォルター・モンデール",
+            "image": "./img/cand/mondale.png",
             "party": "DEM",
             "isMate": true,
-            "state": "AR"
+            "state": "MN",
+            "desc": "ミネソタ州選出の上院議員を経て、カーター政権の現職副大統領を務める。リベラル派や労働組合からの信頼が厚く、政権と議会のパイプ役として重要な役割を担っている。"
         }
     },
     "states": {
@@ -315,7 +327,7 @@ mapData["1980"] = {
             }
         },
         "NC": {
-            "votes": 13,
+            "votes": 12,
             "class": "state like-GOP",
             "baseSupport": {
                 "GOP": 49.3,
@@ -467,7 +479,7 @@ mapData["1980"] = {
             }
         },
         "VT": {
-            "votes": 4,
+            "votes": 3,
             "class": "state like-GOP",
             "baseSupport": {
                 "GOP": 44.4,
@@ -505,6 +517,23 @@ mapData["1980"] = {
                 "GOP": 62.6,
                 "DEM": 28.0
             }
+        }
+    },
+
+    custominit: function () {
+        if (selectedPresident === "carter") {
+            currentMap.startDate = "1977-01-20"
+            currentMap.candidates["anderson"].primary = true;
+            currentMap.candidates["anderson"].party = "GOP";
+            currentMap.candidates["reagan"].primary = true;
+
+            currentMap.candidates["reagan"].name = "共和党";
+            currentMap.candidates["reagan"].image = "./img/cand/gop.png";
+
+            updateMainCandidateDisplay(selectedPresident, selectedMate);
+
+
+
         }
     }
 }

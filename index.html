@@ -519,14 +519,8 @@
 
         /* 最終リザルト画面の全体枠 */
         .summary-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
             background: #fff;
             color: #000;
-            z-index: 100000;
             display: flex;
             flex-direction: column;
             padding: 16px;
@@ -835,6 +829,7 @@
 
                             <img class="person_image" id="mate-info-img" src="" alt="候補者画像" width="100%" height="100%"
                                 style="display: none;">
+                            <span id="mate-info-noimg" style="font-size: 0.8em; color: #777;">No Image</span>
                             <div id="mate-info-bio"
                                 style="flex-grow: 1; line-height: 1.6; color: #000; font-size: 0.95em;"></div>
                         </div>
@@ -986,8 +981,8 @@
         <!-- 上部ヘッダー & タブボタン -->
         <div class="summary-header">
             <div class="summary-tabs">
-                <button type="button" class="summary-tab-btn active" data-tab="tab-story">📜 選挙の総括・その後</button>
-                <button type="button" class="summary-tab-btn" data-tab="tab-map">🗺️ 最終マップ・各州の得票率</button>
+                <button type="button" class="summary-tab-btn active" data-tab="tab-story">📜 概要</button>
+                <button type="button" class="summary-tab-btn" data-tab="tab-map">🗺️ 結果</button>
             </div>
             <button type="button" class="result-replay-btn" onclick="location.reload()">もう一度プレイ</button>
         </div>
@@ -995,12 +990,13 @@
         <!-- タブ1：臨場感のある勝利・敗北メッセージ（エンディング） -->
         <div id="tab-story" class="summary-tab-content active">
             <div class="summary-hero">
-                <span id="summaryOutcomeBadge" class="summary-badge">当選</span>
-                <h1 id="summaryHeadline">ジョージ・ワシントンが次期大統領に選出</h1>
-                <p id="summarySubline" class="summary-subline">獲得選挙人票: 69票 / 過半数ライン: 35票</p>
+                <span id="summaryOutcomeBadge" class="summary-badge">Loading...</span>
+                <h1 id="summaryHeadline">Loading...</h1>
+                <p id="summarySubline" class="summary-subline">Loading...</p>
             </div>
             <!-- Mod制作者がカスタムできる「その後の歴史・ストーリー」本文 -->
             <div id="summaryStoryBody" class="summary-story-box"></div>
+            <div id="summaryresulttable"></div>
         </div>
         <!-- タブ2：最終マップと各州の得票率一覧 -->
         <div id="tab-map" class="summary-tab-content" style="display: none;">

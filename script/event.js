@@ -61,38 +61,49 @@ function showEventModal(event) {
     modal.style.display = "flex";
 }
 
-
 let eventQueue = []; // 発生待ちイベントのリスト
-// イベントデータを非同期でロードする関数
+
+// イベントデータ（JSファイル）を非同期でロードする関数
 async function ensureEventsLoaded() {
     const scenario = currentMap;
     if (!scenario) return false;
 
-    // すでにロード済み（または空配列がセット済み）ならロード処理をスキップ
+    // すでにロード済みならスキップ
     if (scenario.scenarioEvents) return true;
 
-    // currentMap.id があれば優先、なければ currentMap.name（例: "1928"）を利用
     const scenarioId = scenario.id || scenario.name;
     if (!scenarioId) return false;
 
-    try {
-        // 親フォルダをたどって event/ フォルダ内の [scenarioId].json を読み込む
-        const response = await fetch(`./event/${scenarioId}.json`);
-        if (!response.ok) {
-            console.warn(`イベントファイル (./event/${scenarioId}.json) が見つかりませんでした。`);
-            scenario.scenarioEvents = [];
-            return false;
-        }
+    return new Promise((resolve) => {
+        // 前回の読み込みデータをリセット
+        window.loadedScenarioEvents = null;
 
-        const events = await response.json();
-        scenario.scenarioEvents = events;
-        console.log(`✅ event/${scenarioId}.json から ${events.length} 件のイベントを自動ロードしました！`);
-        return true;
-    } catch (e) {
-        console.error(`イベント読み込みエラー (./event/${scenarioId}.json):`, e);
-        scenario.scenarioEvents = [];
-        return false;
-    }
+        // <script src="./event/1980.js"> を動的に生成して読み込む
+        const script = document.createElement("script");
+        script.src = `./event/${scenarioId}.js`;
+
+        script.onload = () => {
+            if (Array.isArray(window.loadedScenarioEvents)) {
+                scenario.scenarioEvents = window.loadedScenarioEvents;
+                console.log(`✅ event/${scenarioId}.js から ${scenario.scenarioEvents.length} 件のイベントをロードしました！`);
+                resolve(true);
+            } else {
+                console.warn(`⚠️ event/${scenarioId}.js に window.loadedScenarioEvents が定義されていません。`);
+                scenario.scenarioEvents = [];
+                resolve(false);
+            }
+            script.remove(); // 読み込み終わったscriptタグは掃除
+        };
+
+        script.onerror = () => {
+            console.warn(`イベントファイル (./event/${scenarioId}.js) が見つかりませんでした。`);
+            scenario.scenarioEvents = [];
+            script.remove();
+            resolve(false);
+        };
+
+        document.head.appendChild(script);
+    });
 }
 
 // processEvents を async 関数にして、最初に自動ロードを行う
@@ -114,6 +125,7 @@ async function processEvents() {
         scenario.scenarioEvents.forEach(event => {
             // 1. 二重発動防止：すでに誰かが発動させていたらスキップ
             if (event.fired) return;
+            if (event.disabled) return;
             // 2. ターゲット判定
             if (event.target) {
                 // ターゲットが配列でも単体でも、必ず配列として扱う
@@ -195,8 +207,13 @@ function showNextEvent() {
 // 汎用条件チェック
 function checkEventConditions(conditions) {
     if (!conditions) return true; // 条件なしは即発動
-
+    if (typeof conditions === "function") {
+        return conditions();
+    }
     return conditions.every(cond => {
+        if (typeof cond === "function") {
+            return Boolean(cond());
+        }
         switch (cond.type) {
             case "has_agent": {
                 const agent = currentMap.agents.find(a => a.id === cond.agentId);
@@ -278,6 +295,19 @@ function applyEventChoice(choice, actorId = selectedPresident) {
         if (eff.party === "OPP") targetId = opponentParty;
 
         console.log(`event: type=${eff.type}, targetId=${targetId}, value=${eff.value}`);
+        if (eff.type === "custom" && typeof eff.fn === "function") {
+            eff.fn(scenario, actorId);
+            console.log("カスタムJSを実行しました。");
+        }
+
+        // --- 【新規追加】特定イベントの有効化（ロック解除） ---
+        if (eff.type === "enable_event") {
+            const targetEv = window.loadedScenarioEvents.find(e => e.id === eff.eventId);
+            if (targetEv) {
+                targetEv.disabled = false;
+                console.log(`イベント [${eff.eventId}] が有効化されました！`);
+            }
+        }
 
         // --- 2. 支持率の書き換え ---
         if (eff.type === "support_all") {
