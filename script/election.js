@@ -1229,7 +1229,7 @@ function allNpcsTurn() {
 
     candidates.forEach(([id, candi]) => {
         // 予備選のみの候補、プレイヤーが選んだ候補、副大統領候補はスキップ
-        if (candi.primary || id === selectedPresident || candi.isMate) return;
+        if (candi.primary || id === selectedPresident || candi.isMate || candi.dc) return;
 
         // 1. 15%の確率でスタミナ切れ・休憩（少しだけ確率を調整）
         if (Math.random() < 0.15) {
@@ -1454,7 +1454,28 @@ async function confirmSetup() {
     const source = await getMapSource(currentMap.mapSource);
     currentMap.mapSource = source;
     setupOpponent(selectedPresident);
-
+    currentMap.agents = currentMap.agents || [];
+    Object.entries(currentMap.candidates).forEach(([id, cand]) => {
+        // agentRole が設定されている人物、またはプレイヤーが副大統領(selectedMate)に選んだ人物を対象にする
+        const isSelectedMate = (id === selectedMate && !notmate);
+        if (cand.agentRole || isSelectedMate) {
+            const exists = currentMap.agents.some(a => a.id === id);
+            if (!exists) {
+                const role = cand.agentRole || {};
+                currentMap.agents.push({
+                    id: id,
+                    name: cand.name,
+                    image: cand.image,
+                    party: cand.party,
+                    // 副大統領に選ばれた場合は自動でプレイヤー(selectedPresident)の配下にする
+                    owner: isSelectedMate ? selectedPresident : (role.owner || null),
+                    home: role.home || cand.state,
+                    power: role.power || 4,
+                    desc: cand.desc || ""
+                });
+            }
+        }
+    });
     processEvents();
     setupEvents();
 
@@ -1464,8 +1485,11 @@ async function confirmSetup() {
         }
     });
 
-    // メインUIに反映
     initGame(currentMap);
+    if (typeof currentMap.custominit === 'function') {
+        currentMap.custominit();
+    }
+    updateCandidateUI(currentMap);
 
 
     // ここで選択した2人をVS画面の左側に表示するロジックを呼ぶ
@@ -1557,7 +1581,8 @@ function updateCandidateUI(config) {
         if (candi.isMate) {
             return;
         }
-        // 3人目以降、または予備選フラグがオンの候補者をリストに表示
+        // 3人目以降、または予備選フラグがオンの候補者をリストに表示4
+        /*
         if (index >= 0) {
             const card = document.createElement('div');
             card.style = "background: white; padding: 10px; border-radius: 5px; width: 120px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; border: 1px solid #eee;";
@@ -1580,6 +1605,7 @@ function updateCandidateUI(config) {
             };
             list.appendChild(card);
         }
+        */
     });
 }
 
@@ -1587,10 +1613,7 @@ let currentScenarioVariables = {};
 
 
 async function initGame(config) {
-    updateCandidateUI(currentMap);
-    if (typeof currentMap.custominit === 'function') {
-        currentMap.custominit();
-    }
+
 
 
     currentScenarioVariables = {

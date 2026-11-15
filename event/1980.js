@@ -23,7 +23,7 @@ window.loadedScenarioEvents = [
                     {
                         "type": "support_all",
                         "party": "DEM",
-                        "value": 20
+                        "value": 25
                     }
                 ]
             }
@@ -142,5 +142,143 @@ window.loadedScenarioEvents = [
                 ]
             }
         ]
+    },
+    {
+        "id": "debate_1980",
+        "title": "運命の大統領選テレビ討論会",
+        "target": ["carter", "reagan", "anderson"],
+        "date": "1980-10-20",
+        "desc": "投票日まであと1週間。全米8000万人が見守るテレビ討論会が開催予定です。あなたはどうしますか？",
+        "conditions": [],
+        "choices": [
+            {
+                "target": ["carter"],
+                "text": "レーガンの軍拡路線や社会保障削減の危険性を厳しく追及する",
+                "advisorText": {
+                    "carter": "レーガンは余裕の笑顔で「また始まった（There you go again）」とかわし、大物ぶりを見せつけました。激戦州の無党派層が一気にレーガンへ流れています！"
+                },
+                "effects": [
+                    { "type": "support_all", "party": "DEM", "value": -10 },
+                    {
+                        "type": "custom",
+                        "fn": () => {
+                            // 史実通り、激戦州（スイングステート）でレーガンが猛追する処理
+                            const swingStates = ["OH", "PA", "MI", "WI", "IL", "FL", "NY", "CA"];
+                            Object.keys(currentMap.states).forEach(sId => {
+                                if (swingStates.includes(sId)) {
+                                    updateStateSupport(sId, "GOP", 5);
+                                    updateStateSupport(sId, "DEM", -3);
+                                }
+                            });
+                        }
+                    }
+                ]
+            },
+            {
+                "target": ["carter"],
+                "text": "人質解放に向けた外交努力と、エネルギー自立への着実な成果を冷静に語る",
+                "advisorText": {
+                    "carter": "誠実で大統領らしい落ち着いた語り口が評価され、レーガンの楽観論に対する不安を突くことに成功しました！激戦州で支持を盛り返しています。"
+                },
+                "effects": [
+                    {
+                        "type": "custom",
+                        "fn": () => {
+                            // 激戦州の無党派層を引き戻し、第3党（無所属）からの票も吸収する処理
+                            const swingStates = ["OH", "PA", "MI", "WI", "IL", "FL"];
+                            Object.keys(currentMap.states).forEach(sId => {
+                                if (swingStates.includes(sId)) {
+                                    updateStateSupport(sId, "DEM", 4);
+                                    updateStateSupport(sId, "GOP", -2);
+                                }
+                            });
+                        }
+                    }
+                ]
+            },
+            {
+                "target": ["reagan"],
+                "text": "人質解放に向けた外交努力と、エネルギー自立への着実な成果を冷静に語る",
+                "advisorText": {
+                    "reagan": "誠実で大統領らしい落ち着いた語り口が評価され、レーガンの楽観論に対する不安を突くことに成功しました！激戦州で支持を盛り返しています。"
+                },
+                "effects": [
+                    {
+                        "type": "custom",
+                        "fn": () => {
+                            // 激戦州の無党派層を引き戻し、第3党（無所属）からの票も吸収する処理
+                            const swingStates = ["OH", "PA", "MI", "WI", "IL", "FL"];
+                            Object.keys(currentMap.states).forEach(sId => {
+                                if (swingStates.includes(sId)) {
+                                    updateStateSupport(sId, "DEM", 4);
+                                    updateStateSupport(sId, "GOP", -2);
+                                }
+                            });
+                        }
+                    }
+                ]
+            },
+            {
+                "target": ["reagan"],
+                "text": "人質解放に向けた外交努力と、エネルギー自立への着実な成果を冷静に語る",
+                "advisorText": {
+                    "reagan": "誠実で大統領らしい落ち着いた語り口が評価され、レーガンの楽観論に対する不安を突くことに成功しました！激戦州で支持を盛り返しています。"
+                },
+                "effects": [
+                    {
+                        "type": "custom",
+                        "fn": () => {
+                            // 激戦州の無党派層を引き戻し、第3党（無所属）からの票も吸収する処理
+                            const swingStates = ["OH", "PA", "MI", "WI", "IL", "FL"];
+                            Object.keys(currentMap.states).forEach(sId => {
+                                if (swingStates.includes(sId)) {
+                                    updateStateSupport(sId, "DEM", 4);
+                                    updateStateSupport(sId, "GOP", -2);
+                                }
+                            });
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+
+    {
+        "id": "gop_convention_1980",
+        "title": "共和党全国大会：ロナルド・レーガン指名",
+        "target": ["carter"],
+        "date": "1980-02-15",
+        "desc": "共和党全国大会でロナルド・レーガン元カリフォルニア州知事が正式に大統領候補に指名されました。また、予備選を戦ったジョン・アンダーソンは無所属での出馬を表明しています。",
+        "conditions": [
+            () => {
+                return selectedPresident === "carter";
+            }
+        ],
+        "choices": [
+            {
+                "text": "本選の戦いに備える",
+                "advisorText": {
+                    "carter": "ついに本選の相手が定まりました。レーガンの強力なメッセージに対抗しなければなりません。"
+                },
+                "effects": [
+                    {
+                        "type": "custom",
+                        "fn": () => {
+                            // レーガンを仮の「共和党」表示から本人の名前・画像に戻す
+                            currentMap.candidates["reagan"].name = "ロナルド・レーガン";
+                            currentMap.candidates["reagan"].image = "./img/cand/reagan.png";
+                            currentMap.candidates["reagan"].primary = false;
+
+                            // アンダーソンを共和党予備選枠から無所属へ切り替える
+                            currentMap.candidates["anderson"].party = "IND";
+                            currentMap.candidates["anderson"].primary = false;
+
+                            updateMainCandidateDisplay(selectedPresident, selectedMate);
+                        }
+                    }
+                ]
+            }
+        ]
     }
+
 ]

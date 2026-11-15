@@ -197,10 +197,12 @@ function renderScenarios(scenarios) {
         const majorPres = mainPresidents.filter(c => majorPartyIds.includes(c.party));
         const thirdPartyPres = mainPresidents.filter(c => !majorPartyIds.includes(c.party));
 
-        // 💡 ヘッダーの対戦テキスト（主要2大政党の名前を結合）
-        const vsText = majorPres.map(p => {
-            const party = config.parties ? config.parties.find(pt => pt.id === p.party) : null;
-            return party ? party.name : p.party;
+        const uniqueMajorPartyIds = [...new Set(majorPres.map(p => p.party))];
+
+        // 2. 政党名に変換して ' VS ' で結合
+        const vsText = uniqueMajorPartyIds.map(partyId => {
+            const party = config.parties ? config.parties.find(pt => pt.id === partyId) : null;
+            return party ? party.name : partyId;
         }).join(' VS ');
 
         // --- 2. メイン大統領候補アバター（上部用：横並び） ---

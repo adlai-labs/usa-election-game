@@ -24,8 +24,16 @@ function showEventModal(event) {
     // 選択肢ボタンを一旦クリア
     container.innerHTML = "";
 
-    // 🌟【新機能】元のデータを壊さないように、選択肢のコピーを作ってシャッフルする
-    const shuffledChoices = [...event.choices];
+    // 🌟【新機能】1. 現在の候補者(selectedPresident)に表示できる選択肢だけを絞り込む
+    const availableChoices = event.choices.filter(choice => {
+        // targetが未指定、または空配列の場合は全候補に表示する
+        if (!choice.target || choice.target.length === 0) return true;
+        // target配列が指定されている場合は、selectedPresidentが含まれているか判定
+        return choice.target.includes(selectedPresident);
+    });
+
+    // 🌟【新機能】2. 絞り込んだ選択肢のコピーを作ってシャッフルする
+    const shuffledChoices = [...availableChoices];
     for (let i = shuffledChoices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffledChoices[i], shuffledChoices[j]] = [shuffledChoices[j], shuffledChoices[i]];

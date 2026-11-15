@@ -30,7 +30,8 @@ mapData["1980"] = {
             "color": "rgb(248, 203, 8)"
         }
     ],
-    "agents": [],
+    "agents": [
+    ],
     "candidates": {
         "reagan": {
             "name": "ロナルド・レーガン",
@@ -106,8 +107,63 @@ mapData["1980"] = {
             "party": "DEM",
             "isMate": true,
             "state": "MN",
-            "desc": "ミネソタ州選出の上院議員を経て、カーター政権の現職副大統領を務める。リベラル派や労働組合からの信頼が厚く、政権と議会のパイプ役として重要な役割を担っている。"
+            "desc": "ミネソタ州選出の上院議員を経て、カーター政権の現職副大統領を務める。リベラル派や労働組合からの信頼が厚く、政権と議会のパイプ役として重要な役割を担っている。",
+            "agentRole": {
+                "owner": "carter",
+                "power": 5
+            }
+        },
+        "ford": {
+            "name": "ジェラルド・フォード",
+            "image": "./img/agent/geraldford.png",
+            "party": "GOP",
+            "isMate": true,
+            "dc": true,
+            "state": "MI",
+            "desc": "第38代アメリカ大統領。穏健派の重鎮として党内の結束を支え、激戦区である中西部工業地帯（ラストベルト）で絶大な影響力を誇る。",
+            "agentRole": {
+                "owner": "reagan",
+                "power": 6
+            }
+        },
+        "goldwater": {
+            "name": "バリー・ゴールドウォーター",
+            "image": "./img/agent/barrygoldwater.jpg",
+            "party": "GOP",
+            "isMate": false,
+            "dc": true,
+            "state": "AZ",
+            "desc": "「ミスター・コンサバティブ」と称される現代保守主義の父。西部およびサンベルト地帯の保守層から熱狂的な支持を集める。",
+            "agentRole": {
+                "owner": "reagan",
+                "power": 5
+            }
+        },
+        "kemp": {
+            "name": "ジャック・ケンプ",
+            "image": "./img/agent/jackkemp.jpg",
+            "party": "GOP",
+            "isMate": true,
+            "state": "NY",
+            "desc": "元プロフットボール選手の経歴を持つ下院議員。大幅減税による経済再生（サプライサイド経済学）の旗手として、東部の労働者層にも浸透する。",
+            "agentRole": {
+                "owner": "reagan",
+                "power": 4
+            }
+        },
+        "baker": {
+            "name": "ハワード・ベーカー",
+            "image": "./img/agent/baker.png",
+            "party": "GOP",
+            "isMate": true,
+            "state": "TN",
+            "desc": "上院共和党院内総務。高い調整能力と誠実な人柄で無党派層や穏健派からの信頼が厚く、南部諸州の切り崩しに力を発揮する。",
+            "agentRole": {
+                "owner": "reagan",
+                "power": 4
+            }
         }
+
     },
     "states": {
         "AK": {
