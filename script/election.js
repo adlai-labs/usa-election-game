@@ -1228,7 +1228,6 @@ function allNpcsTurn() {
     const stateIds = Object.keys(currentMap.states);
 
     candidates.forEach(([id, candi]) => {
-        // 予備選のみの候補、プレイヤーが選んだ候補、副大統領候補はスキップ
         if (candi.primary || id === selectedPresident || candi.isMate || candi.dc) return;
 
         // 1. 15%の確率でスタミナ切れ・休憩（少しだけ確率を調整）
@@ -1458,7 +1457,7 @@ async function confirmSetup() {
     Object.entries(currentMap.candidates).forEach(([id, cand]) => {
         // agentRole が設定されている人物、またはプレイヤーが副大統領(selectedMate)に選んだ人物を対象にする
         const isSelectedMate = (id === selectedMate && !notmate);
-        if (cand.agentRole || isSelectedMate) {
+        if (cand.agentRole) {
             const exists = currentMap.agents.some(a => a.id === id);
             if (!exists) {
                 const role = cand.agentRole || {};
@@ -1998,7 +1997,7 @@ async function finishGame() {
     const isWinner = (playerVotes >= winThreshold) && (topPartyId === playerPartyId);
     const overlay = document.getElementById("electionResultOverlay");
     // 2. index.html に用意したオーバーレイを取得して表示
-    overlay.style.display = "flex";
+    overlay.style.display = "block";
 
     // テキスト・勝敗表示の反映
     document.getElementById("resultMapName").textContent = currentMap.name || "大統領選挙";

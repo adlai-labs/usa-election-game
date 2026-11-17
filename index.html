@@ -370,7 +370,7 @@
 
         /* 画面全体の枠組み（白背景・黒文字の基本構造のみ） */
         .result-overlay {
-            position: fixed;
+            position: block;
             top: 0;
             left: 0;
             width: 100vw;
@@ -589,7 +589,9 @@
         .summary-story-box {
             line-height: 1.8;
             font-size: 1em;
+            text-align: center;
             max-width: 800px;
+            margin: 0 auto;
             white-space: pre-wrap;
         }
 
@@ -970,8 +972,8 @@
 
         <!-- 下部：最終結果発表カード -->
         <div id="finalAnnouncement" class="result-announcement">
-            <h1 id="resultWinnerTitle">当選</h1>
-            <p id="winnerDetailText"></p>
+            <h1 id="resultWinnerTitle"></h1>
+            <p id="winnerDetailText" style="text-align: center;"></p>
             <button type="button" id="replayBtn" class="result-replay-btn">結果を見る</button>
         </div>
     </div>
